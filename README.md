@@ -60,7 +60,8 @@ The drop miner is [Twitch Drops Miner](https://github.com/SimpliAj/twitchdropsmi
 ## For maintainers: publishing an update
 
 1. Make your changes.
-2. Raise the number in `VERSION` (e.g. `1.0.0` → `1.0.1`).
-3. Push to the `main` branch. Everyone's Loot Radar sees it within 6 hours.
+2. Raise the number in `VERSION`: fixes and small tweaks `1.0.0` → `1.0.1`, a new feature → `1.1.0`, a big overhaul → `2.0.0`.
+3. Add what changed to the top of `CHANGELOG.md`.
+4. Commit, tag (`v1.0.1`) and push to `main`. Everyone's Loot Radar sees it within 6 hours.
 
-The update source is set by `UPDATE_REPO` at the top of `app/updates.py`.
+The update source is set by `UPDATE_REPO` at the top of `app/updates.py`. See [CHANGELOG.md](CHANGELOG.md) for the version history.
