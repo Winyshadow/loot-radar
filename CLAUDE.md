@@ -9,7 +9,10 @@ Owner: solitary_samurai (GitHub: Winyshadow). Not a programmer, so explain chang
    - a new feature → minor (1.0.x → 1.1.0)
    - a big overhaul → major (1.x → 2.0.0)
 2. Add an entry at the top of `CHANGELOG.md` (version, date, plain-language bullets).
-3. Commit to `main` with the version in the message ("Loot Radar 1.0.1: ..."), tag it (`git tag v1.0.1`) and push the commit and the tag.
+3. Commit to `main` with the version in the message ("Loot Radar 1.0.1: ...") and push.
+4. Tags can't be pushed from Claude's sessions (the proxy refuses them), so ask the owner to publish a
+   GitHub Release: repo → Releases → Draft a new release → tag `v1.0.1` (create on publish, target `main`)
+   → title "Loot Radar 1.0.1" → paste the CHANGELOG entry → Publish. The updater doesn't need tags.
 
 Docs-only changes (README, CHANGELOG, this file) don't bump `VERSION`, so users aren't prompted to update for nothing.
 
