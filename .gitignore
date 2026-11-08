@@ -1,0 +1,12 @@
+# Personal data: settings, Steam key, Discord webhook, Twitch sign-in. Never commit these.
+app/data/
+
+# Installed per PC
+app/.venv/
+miner/
+__pycache__/
+*.pyc
+
+# Leftovers from self-updates
+START.bat.new
+*.tmp

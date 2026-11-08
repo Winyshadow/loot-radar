@@ -1,0 +1,8 @@
+flask>=3.0
+waitress>=3.0
+requests>=2.31
+websocket-client>=1.7
+aiohttp==3.13.5
+psutil>=5.9
+pystray>=0.19
+Pillow>=10.0

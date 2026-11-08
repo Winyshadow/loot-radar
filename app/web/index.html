@@ -1,0 +1,1193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loot Radar</title>
+<link rel="icon" type="image/png" href="/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg0: #071b27; --bg1: #0b2a3b; --bg2: #11455d;
+    --glass: rgba(13, 42, 58, .62); --glass2: rgba(18, 55, 74, .55); --glass3: rgba(24, 68, 90, .45);
+    --line: rgba(160, 220, 245, .11); --line2: rgba(160, 220, 245, .2);
+    --text: #e8f3f7; --dim: #93b4c2; --faint: #5f8494;
+    --lime: #b6f03c; --lime2: #7fd924; --limeglow: rgba(182, 240, 60, .35);
+    --amber: #f4c25a; --red: #ff6b7a; --violet: #a989ff; --sky: #5cc8ff;
+    --r-xl: 28px; --r-lg: 20px; --r-md: 14px;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg0); }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text);
+    font: 14px/1.5 "Manrope", "Segoe UI", system-ui, sans-serif;
+    background:
+      radial-gradient(900px 600px at 12% 88%, rgba(120, 190, 210, .22), transparent 60%),
+      radial-gradient(800px 600px at 55% 70%, rgba(30, 120, 160, .35), transparent 65%),
+      radial-gradient(1000px 700px at 95% 0%, rgba(25, 110, 150, .45), transparent 60%),
+      linear-gradient(160deg, var(--bg1), var(--bg0) 70%);
+    background-attachment: fixed;
+  }
+  a { color: var(--sky); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ::selection { background: var(--lime); color: #0a2230; }
+
+  /* ---------- shell */
+  .shell {
+    max-width: 1320px; margin: 22px auto; padding: 0 22px 26px;
+    background: var(--glass); border: 1px solid var(--line); border-radius: var(--r-xl);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 30px 80px rgba(0, 10, 20, .45), inset 0 1px 0 rgba(255, 255, 255, .05);
+  }
+  nav.top { display: flex; align-items: center; gap: 18px; padding: 18px 6px 14px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; letter-spacing: .2px; margin-right: auto; }
+  .brand img { width: 34px; height: 34px; border-radius: 9px; }
+  .brand-text { display: flex; flex-direction: column; line-height: 1.1; }
+  .brand .by { font-size: 10px; font-weight: 500; letter-spacing: 1.6px; text-transform: lowercase; color: var(--faint); margin-top: 3px; text-decoration: none; }
+  .brand .by b { font-weight: 700; letter-spacing: .6px; background: linear-gradient(90deg, var(--lime), #7fe0ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .brand .by:hover b { filter: brightness(1.2); }
+  .tabs { display: flex; gap: 4px; padding: 4px; border-radius: 99px; background: rgba(5, 25, 36, .45); border: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+  .tabs a { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 99px; color: var(--dim); font-weight: 500; white-space: nowrap; transition: color .15s, background .15s; }
+  .tabs a:hover { color: var(--text); text-decoration: none; }
+  .tabs a.on { color: var(--text); background: var(--glass3); box-shadow: inset 0 0 0 1px var(--line2); }
+  .tabs a.on svg { color: var(--lime); }
+  .tabs svg { width: 16px; height: 16px; flex: none; }
+  .tabs .badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--lime); color: #0a2230; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+  .status { display: flex; gap: 6px; margin-left: auto; align-items: center; }
+  .dot { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px; border-radius: 99px; background: rgba(5, 25, 36, .45); border: 1px solid var(--line); color: var(--dim); font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .dot i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .dot.ok i { background: var(--lime); box-shadow: 0 0 10px var(--limeglow); }
+  .dot.warn i { background: var(--amber); } .dot.bad i { background: var(--red); }
+  .dot.live i { background: var(--lime); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 6px rgba(182, 240, 60, 0); } 0% { box-shadow: 0 0 0 0 rgba(182, 240, 60, .6); } }
+
+  /* ---------- buttons & inputs */
+  button { font: inherit; cursor: pointer; color: var(--text); background: rgba(5, 25, 36, .5); border: 1px solid var(--line2); border-radius: 99px; padding: 8px 16px; font-weight: 500; transition: border-color .15s, background .15s, transform .1s; }
+  button:hover { border-color: rgba(182, 240, 60, .55); }
+  button:active { transform: scale(.98); }
+  button.lime { background: var(--lime); border-color: var(--lime); color: #0a2230; font-weight: 700; box-shadow: 0 0 24px rgba(182, 240, 60, .25); }
+  button.lime:hover { background: #c8ff5a; }
+  button.ghost { background: transparent; }
+  button.sm { padding: 6px 12px; font-size: 12px; }
+  button.round { width: 36px; height: 36px; padding: 0; display: grid; place-items: center; flex: none; }
+  button:disabled { opacity: .45; cursor: default; }
+  input, select { font: inherit; color: var(--text); background: rgba(4, 20, 30, .55); border: 1px solid var(--line2); border-radius: 12px; padding: 10px 12px; width: 100%; }
+  input::placeholder { color: var(--faint); }
+  input:focus, select:focus { outline: none; border-color: var(--lime); box-shadow: 0 0 0 3px rgba(182, 240, 60, .12); }
+  select option { background: #0b2a3b; }
+  .pillbox { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: 99px; background: rgba(5, 25, 36, .5); border: 1px solid var(--line2); color: var(--dim); font-size: 13px; }
+  .pillbox b { color: var(--text); font-weight: 600; }
+
+  /* ---------- page header */
+  .page { display: none; animation: rise .35s ease; }
+  .page.on { display: block; }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+  .head { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin: 18px 6px 18px; }
+  .head h1 { margin: 0; font-size: 40px; font-weight: 400; letter-spacing: -.5px; line-height: 1.1; margin-right: auto;
+             background: linear-gradient(180deg, #ffffff, #b9d4de); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .head .sub { width: 100%; color: var(--dim); margin-top: -8px; }
+
+  /* ---------- stat cards */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px; }
+  .stat { position: relative; overflow: hidden; border-radius: var(--r-lg); background: linear-gradient(180deg, rgba(20, 62, 82, .7), rgba(12, 40, 56, .85)); border: 1px solid var(--line); transition: transform .2s, border-color .2s; }
+  .stat:hover { transform: translateY(-3px); border-color: rgba(182, 240, 60, .35); }
+  .stat .ill { height: 150px; display: block; width: 100%; }
+  .stat .num { padding: 0 18px; font-size: 34px; font-weight: 300; letter-spacing: -.5px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .stat .num small { font-size: 18px; color: var(--dim); margin-left: 2px; }
+  .stat .lbl { padding: 2px 18px 16px; color: var(--dim); font-size: 13px; }
+  .float { animation: float 5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .float.d2 { animation-delay: -1.6s; } .float.d3 { animation-delay: -3.1s; }
+  @keyframes float { 50% { transform: translateY(-6px); } }
+  .spin { animation: spin 14s linear infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .blink { animation: blink 2.4s ease-in-out infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+  @media (prefers-reduced-motion: reduce) { .float, .spin, .blink, .page, .dot.live i { animation: none !important; } }
+
+  /* ---------- panels & tables */
+  .panel { border-radius: var(--r-lg); background: rgba(10, 36, 50, .6); border: 1px solid var(--line); margin-bottom: 14px; overflow: hidden; }
+  .phead { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .phead h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .phead .muted { font-size: 12px; }
+  .phead .right { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .muted { color: var(--dim); } .faint { color: var(--faint); font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 12px 16px; vertical-align: middle; }
+  th { font-size: 12px; color: var(--faint); font-weight: 500; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  tbody tr { border-bottom: 1px solid var(--line); transition: background .15s; }
+  tbody tr:last-child { border-bottom: 0; }
+  tbody tr:hover { background: rgba(160, 220, 245, .035); }
+  .scroll { max-height: 640px; overflow: auto; }
+  .xscroll { overflow-x: auto; }
+  .empty { padding: 34px 18px; text-align: center; color: var(--faint); }
+  .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .filters input { width: 260px; border-radius: 99px; padding: 9px 16px; }
+  .pill { padding: 7px 14px; font-size: 12px; }
+  .pill.on { background: rgba(182, 240, 60, .14); border-color: rgba(182, 240, 60, .55); color: var(--lime); }
+
+  .tag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .tag.live { background: rgba(182, 240, 60, .14); color: var(--lime); }
+  .tag.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--lime); }
+  .tag.soon { background: rgba(244, 194, 90, .14); color: var(--amber); }
+  .tag.warn { background: rgba(255, 107, 122, .14); color: var(--red); }
+  .tag.ok { background: rgba(92, 200, 255, .12); color: var(--sky); }
+  .tag.mode { background: rgba(169, 137, 255, .14); color: var(--violet); }
+  .tag.src { background: rgba(169, 137, 255, .14); color: var(--violet); font-size: 10px; letter-spacing: .4px; }
+  .store { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; white-space: nowrap; border: 1px solid currentColor; }
+  .store.steam { color: #8fc8ff; } .store.epic { color: #e6e6e6; } .store.ea { color: #ff6b6b; } .store.battlenet { color: #4fb3ff; }
+  .store.ubisoft { color: #6aa9ff; } .store.xbox { color: #6fdc6f; } .store.rockstar { color: #ffcc4d; } .store.riot { color: #ff5a5f; }
+  .store.gog { color: #c18bff; } .store.amazon { color: #ffb347; } .store.twitch { color: var(--violet); }
+  .tile { width: 108px; height: 50px; border-radius: 8px; flex: none; display: grid; place-items: center; font-weight: 800; font-size: 12px; letter-spacing: .5px;
+          background: linear-gradient(135deg, rgba(24, 68, 90, .8), rgba(10, 36, 50, .9)); border: 1px solid var(--line); color: var(--dim); text-transform: uppercase; }
+
+  .bar { height: 6px; border-radius: 99px; background: rgba(160, 220, 245, .1); overflow: hidden; min-width: 90px; }
+  .bar b { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--lime2), var(--lime)); box-shadow: 0 0 12px var(--limeglow); transition: width .6s ease; }
+
+  .art { width: 42px; height: 56px; border-radius: 8px; object-fit: cover; background: var(--glass3); flex: none; }
+  .art.sq { width: 46px; height: 46px; border-radius: 12px; object-fit: contain; padding: 4px; background: rgba(4, 20, 30, .6); border: 1px solid var(--line); }
+  .cap { width: 108px; height: 50px; border-radius: 8px; object-fit: cover; background: var(--glass3); flex: none; }
+  .who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .who b { font-weight: 600; }
+  .rank { color: var(--faint); width: 26px; font-variant-numeric: tabular-nums; }
+
+  /* ---------- now mining */
+  .now { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-bottom: 14px; }
+  .ncard { border-radius: var(--r-lg); background: rgba(10, 36, 50, .6); border: 1px solid var(--line); padding: 18px; min-width: 0; position: relative; overflow: hidden; }
+  .ncard h2 { margin: 0 0 14px; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .ncard h2 .right { margin-left: auto; font-weight: 400; }
+  .ncard.glow::before { content: ""; position: absolute; inset: -40% 40% 40% -10%; background: radial-gradient(closest-side, rgba(182, 240, 60, .12), transparent); pointer-events: none; }
+  .ndrop { display: flex; gap: 14px; align-items: center; margin-bottom: 16px; min-width: 0; }
+  .ndrop .rimg { width: 64px; height: 64px; border-radius: 14px; object-fit: contain; padding: 6px; background: rgba(4, 20, 30, .6); border: 1px solid var(--line2); flex: none; }
+  .ndrop .t { font-size: 20px; font-weight: 600; line-height: 1.25; }
+  .bigbar { position: relative; height: 22px; border-radius: 99px; background: rgba(160, 220, 245, .1); overflow: hidden; }
+  .bigbar b { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: linear-gradient(90deg, var(--lime2), var(--lime)); box-shadow: 0 0 18px var(--limeglow); transition: width 1s linear; }
+  .bigbar span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #0a2230; mix-blend-mode: normal; text-shadow: 0 0 6px rgba(255,255,255,.35); }
+  .nmeta { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; font-size: 13px; color: var(--dim); font-variant-numeric: tabular-nums; flex-wrap: wrap; }
+  .countdown { font-size: 13px; color: var(--text); }
+  .countdown b { font-size: 18px; font-weight: 600; color: var(--lime); letter-spacing: .5px; font-variant-numeric: tabular-nums; }
+  .nfoot { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .chan { display: flex; gap: 12px; align-items: center; min-width: 0; }
+  .chan img, .chan .ph { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex: none; border: 2px solid var(--lime); box-shadow: 0 0 16px var(--limeglow); background: var(--glass3); }
+  .chan .nm { font-size: 17px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .plist { display: grid; gap: 2px; }
+  .plist div { display: flex; justify-content: space-between; gap: 10px; padding: 7px 10px; border-radius: 10px; font-variant-numeric: tabular-nums; }
+  .plist div a { color: var(--violet); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .plist div.cur { background: rgba(182, 240, 60, .08); }
+  .plist div.cur a { color: var(--lime); }
+  .nidle { display: grid; gap: 10px; justify-items: start; color: var(--dim); }
+
+  /* ---------- running drops (collapsible) */
+  .game { border-bottom: 1px solid var(--line); }
+  .game:last-child { border-bottom: 0; }
+  .grow { display: grid; grid-template-columns: 52px minmax(220px, 2.2fr) minmax(150px, 1.6fr) 110px 150px 112px; gap: 16px; align-items: center; padding: 12px 16px; cursor: pointer; transition: background .15s; }
+  .grow:hover { background: rgba(160, 220, 245, .035); }
+  .grow .chev { transition: transform .25s; }
+  .prio { display: flex; align-items: center; gap: 6px; color: var(--faint); cursor: grab; user-select: none; }
+  .prio b { min-width: 26px; height: 22px; padding: 0 6px; border-radius: 7px; display: grid; place-items: center; font-size: 11px; color: var(--lime); background: rgba(182, 240, 60, .12); }
+  .prio svg { opacity: .55; } .grow:hover .prio svg { opacity: 1; }
+  .gacts { display: flex; gap: 4px; justify-content: flex-end; }
+  .gacts button.round { width: 32px; height: 32px; }
+  .game.dragging { opacity: .45; }
+  .game.drop-above { box-shadow: inset 0 2px 0 var(--lime); } .game.drop-below { box-shadow: inset 0 -2px 0 var(--lime); }
+  .waiting { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 14px 18px; border-top: 1px solid var(--line); }
+  .waiting .chip { padding: 4px 10px; border-radius: 8px; background: rgba(4, 20, 30, .5); border: 1px solid var(--line); color: var(--dim); font-size: 12px; }
+  .game.open .grow .chev { transform: rotate(45deg); border-color: rgba(182, 240, 60, .6); color: var(--lime); }
+  .game.open .grow { background: rgba(160, 220, 245, .04); }
+  .gbody { display: none; padding: 4px 16px 16px 58px; }
+  .game.open .gbody { display: block; animation: rise .25s ease; }
+  .camp { margin-top: 10px; border-radius: var(--r-md); background: rgba(4, 20, 30, .45); border: 1px solid var(--line); }
+  .camp .ch { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .drop { display: grid; grid-template-columns: 46px 1fr minmax(120px, 220px) 110px; gap: 14px; align-items: center; padding: 10px 14px; }
+  .drop + .drop { border-top: 1px dashed var(--line); }
+  .drop.next { background: rgba(182, 240, 60, .045); }
+
+  /* ---------- completed */
+  .done-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; padding: 14px; }
+  .done { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--r-md); background: rgba(4, 20, 30, .45); border: 1px solid var(--line); }
+  .done .check { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: rgba(182, 240, 60, .16); color: var(--lime); flex: none; margin-left: auto; }
+
+  /* ---------- mode switch */
+  .seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 99px; background: rgba(4, 20, 30, .55); border: 1px solid var(--line); }
+  .seg button { border: 0; background: transparent; padding: 6px 11px; font-size: 12px; color: var(--dim); white-space: nowrap; border-radius: 99px; }
+  .seg button:hover { color: var(--text); }
+  .seg button.on[data-m="off"] { background: var(--glass3); color: var(--text); }
+  .seg button.on[data-m="alerts"] { background: rgba(92, 200, 255, .16); color: var(--sky); }
+  .seg button.on[data-m="miner"] { background: rgba(182, 240, 60, .16); color: var(--lime); }
+  .seg button.on[data-m="muted"] { background: rgba(169, 137, 255, .18); color: var(--violet); }
+  .legend { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); color: var(--dim); font-size: 12px; }
+  .legend b { color: var(--text); font-weight: 600; }
+  .tw { width: 180px; padding: 7px 10px; font-size: 12px; border-radius: 10px; }
+
+  /* ---------- banners, cards, forms */
+  .banner { display: flex; align-items: center; gap: 14px; padding: 14px 18px; margin-bottom: 14px; border-radius: var(--r-lg); border: 1px solid rgba(182, 240, 60, .35); background: linear-gradient(90deg, rgba(182, 240, 60, .12), rgba(182, 240, 60, .02)); flex-wrap: wrap; }
+  .banner.violet { border-color: rgba(169, 137, 255, .35); background: linear-gradient(90deg, rgba(169, 137, 255, .14), rgba(169, 137, 255, .02)); }
+  .cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
+  .card { border-radius: var(--r-lg); background: rgba(10, 36, 50, .6); border: 1px solid var(--line); padding: 18px; display: grid; gap: 12px; align-content: start; }
+  .card h3 { margin: 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+  .card h3 .n { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; background: var(--glass3); border: 1px solid var(--line2); }
+  .card.done h3 .n { background: var(--lime); color: #0a2230; border-color: var(--lime); }
+  .card ol { margin: 0; padding-left: 18px; color: var(--dim); font-size: 13px; display: grid; gap: 4px; }
+  details summary { cursor: pointer; color: var(--dim); font-size: 13px; }
+  details summary:hover { color: var(--text); }
+  .field label { display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px; font-weight: 600; }
+  .field .hint { font-size: 12px; color: var(--faint); margin-top: 6px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 18px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .check-line { display: flex; gap: 10px; align-items: center; color: var(--dim); }
+  .check-line input { width: auto; accent-color: var(--lime); }
+
+  .log { font-family: "Cascadia Mono", Consolas, ui-monospace, monospace; font-size: 12px; max-height: 620px; overflow: auto; }
+  .log div { padding: 7px 18px; border-bottom: 1px solid rgba(160, 220, 245, .06); color: var(--dim); display: flex; gap: 14px; }
+  .log time { color: var(--faint); flex: none; }
+  .log .warn { color: var(--amber); } .log .error { color: var(--red); }
+
+  .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); padding: 11px 18px; border-radius: 99px; z-index: 50; display: none; max-width: calc(100vw - 32px);
+           background: rgba(10, 36, 50, .95); border: 1px solid var(--line2); box-shadow: 0 12px 40px rgba(0, 0, 0, .5); backdrop-filter: blur(10px); }
+  .toast.ok { border-color: rgba(182, 240, 60, .6); } .toast.bad { border-color: var(--red); }
+
+  @media (max-width: 1100px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .now { grid-template-columns: 1fr 1fr; } .now .ncard:first-child { grid-column: 1 / -1; }
+    .grow { grid-template-columns: 52px 1fr 120px 112px; }
+    .grow .hide-md { display: none; }
+  }
+  @media (max-width: 760px) {
+    .shell { margin: 0; border-radius: 0; padding: 0 16px 20px; }
+    .head h1 { font-size: 30px; }
+    .stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat .ill { height: 110px; } .stat .num { font-size: 26px; }
+    .cards3, .grid2, .legend, .now { grid-template-columns: 1fr; }
+    .status { width: 100%; margin-left: 0; overflow-x: auto; }
+    .tabs { width: 100%; }
+    .grow { grid-template-columns: 40px 1fr 112px; } .grow .hide-sm { display: none; }
+    .gbody { padding-left: 16px; }
+    .drop { grid-template-columns: 40px 1fr; } .drop .hide-sm { display: none; }
+    .hide-sm { display: none; }
+    .filters input { width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- shared gradients and glow for the illustrations -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="g-lime" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e4ff8a"/><stop offset="1" stop-color="#6fd11c"/></linearGradient>
+    <linearGradient id="g-lime-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ee02c"/><stop offset="1" stop-color="#3f9a12"/></linearGradient>
+    <linearGradient id="g-lime-dark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4fae18"/><stop offset="1" stop-color="#245f0b"/></linearGradient>
+    <linearGradient id="g-beam" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#b6f03c" stop-opacity=".75"/><stop offset="1" stop-color="#b6f03c" stop-opacity="0"/></linearGradient>
+    <linearGradient id="g-teal" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d5a74"/><stop offset="1" stop-color="#0c2c3d"/></linearGradient>
+    <radialGradient id="g-glow"><stop offset="0" stop-color="#b6f03c" stop-opacity=".55"/><stop offset="1" stop-color="#b6f03c" stop-opacity="0"/></radialGradient>
+    <radialGradient id="g-orb"><stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#e4ff8a"/><stop offset="1" stop-color="#7fd924" stop-opacity="0"/></radialGradient>
+    <filter id="f-glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+</svg>
+
+<div class="shell">
+  <nav class="top">
+    <div class="brand"><img src="/icon.png" alt="">
+      <div class="brand-text"><span>Loot Radar</span><a class="by" href="https://github.com/Winyshadow/loot-radar" target="_blank" title="Loot Radar on GitHub">by <b>solitary_samurai</b></a></div></div>
+    <div class="tabs" id="tabs">
+      <a href="#/overview" data-p="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l6-6"/></svg>Overview</a>
+      <a href="#/browse" data-p="browse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-2-4-6-4-6-1.5S10 8 12 8zm0 0c2-4 6-4 6-1.5S14 8 12 8z"/></svg>Browse drops</a>
+      <a href="#/library" data-p="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9h4M8 7v4M15 10h.01M18 8h.01"/><path d="M7 4h10a5 5 0 015 5v3a5 5 0 01-9 3h-2a5 5 0 01-9-3V9a5 5 0 015-5z"/></svg>Library</a>
+      <a href="#/activity" data-p="activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Activity</a>
+      <a href="#/settings" data-p="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>Settings<span class="badge" id="setup-badge" style="display:none">!</span></a>
+    </div>
+    <div class="status">
+      <span class="dot" id="c-steam"><i></i>Steam</span>
+      <span class="dot" id="c-discord"><i></i>Discord</span>
+      <span class="dot" id="c-miner"><i></i>Miner</span>
+      <span class="dot" id="c-muted"><i></i>Muted</span>
+    </div>
+  </nav>
+
+  <!-- ===================== OVERVIEW -->
+  <section class="page" id="p-overview">
+    <div class="head">
+      <h1>Loot Overview</h1>
+      <span class="pillbox" id="watching-pill">Checking…</span>
+      <button class="lime" id="btn-check">Check now</button>
+    </div>
+
+    <div class="banner" id="setup-banner" style="display:none">
+      <b>Finish setting up</b><span class="muted" id="setup-missing"></span>
+      <a href="#/settings" style="margin-left:auto"><button class="sm">Open settings</button></a>
+    </div>
+    <div class="banner violet" id="muted-banner" style="display:none"></div>
+    <div class="banner" id="update-banner" style="display:none"></div>
+
+    <div class="stats">
+      <div class="stat">
+        <svg class="ill" viewBox="0 0 240 150" preserveAspectRatio="xMidYMid slice">
+          <ellipse cx="120" cy="128" rx="70" ry="16" fill="url(#g-glow)"/>
+          <polygon points="88,84 152,84 184,0 56,0" fill="url(#g-beam)" opacity=".75"/>
+          <g class="float d2" filter="url(#f-glow)">
+            <polygon points="120,22 134,38 120,58 106,38" fill="url(#g-lime)"/>
+            <polygon points="106,38 134,38 120,58" fill="url(#g-lime-side)"/>
+            <polygon points="113,30 120,22 127,30 120,38" fill="#f4ffd0" opacity=".8"/>
+          </g>
+          <circle class="blink" cx="78" cy="40" r="2" fill="#e4ff8a"/><circle class="blink" cx="166" cy="54" r="1.6" fill="#e4ff8a" style="animation-delay:-1s"/><circle class="blink" cx="150" cy="22" r="1.4" fill="#e4ff8a" style="animation-delay:-.5s"/>
+          <polygon points="84,86 120,104 120,138 84,120" fill="url(#g-lime-side)"/>
+          <polygon points="120,104 156,86 156,120 120,138" fill="url(#g-lime-dark)"/>
+          <polygon points="84,86 120,68 156,86 120,104" fill="#0d3a12"/>
+          <polygon points="84,86 120,68 156,86 120,104" fill="none" stroke="#e4ff8a" stroke-width="1.5"/>
+          <polygon points="98,93 106,97 106,131 98,127" fill="#e4ff8a" opacity=".55"/>
+          <polygon points="134,97 142,93 142,127 134,131" fill="#245f0b" opacity=".7"/>
+          <g class="float">
+            <polygon points="60,62 96,44 120,56 84,74" fill="url(#g-lime)" opacity=".9"/>
+            <polygon points="60,62 84,74 84,80 60,68" fill="url(#g-lime-dark)"/>
+          </g>
+        </svg>
+        <div class="num" data-count="claimed">0</div>
+        <div class="lbl">Drops claimed</div>
+      </div>
+
+      <div class="stat">
+        <svg class="ill" viewBox="0 0 240 150" preserveAspectRatio="xMidYMid slice">
+          <ellipse cx="120" cy="95" rx="100" ry="40" fill="url(#g-glow)" opacity=".7"/>
+          <g transform="translate(120 92) scale(1 .42)">
+            <circle r="78" fill="none" stroke="#1d5a74" stroke-width="14"/>
+            <circle class="spin" r="78" fill="none" stroke="url(#g-lime)" stroke-width="14" stroke-linecap="round" stroke-dasharray="330 160" filter="url(#f-glow)"/>
+            <circle r="56" fill="none" stroke="#b6f03c" stroke-opacity=".25" stroke-width="2" stroke-dasharray="4 8"/>
+            <circle r="40" fill="#0c2c3d"/>
+          </g>
+          <rect x="114" y="30" width="12" height="62" rx="6" fill="url(#g-beam)" opacity=".7"/>
+          <g class="float"><circle cx="120" cy="66" r="20" fill="url(#g-orb)"/><circle cx="120" cy="66" r="7" fill="#fff"/></g>
+          <g class="float d3" fill="url(#g-lime)">
+            <polygon points="38,48 52,41 64,47 50,54"/><polygon points="176,36 190,29 202,35 188,42"/><polygon points="186,104 198,98 208,103 196,109" opacity=".7"/>
+          </g>
+        </svg>
+        <div class="num" data-count="progress">0</div>
+        <div class="lbl">Drops in progress</div>
+      </div>
+
+      <div class="stat">
+        <svg class="ill" viewBox="0 0 240 150" preserveAspectRatio="xMidYMid slice">
+          <g fill="none" stroke="#b6f03c" stroke-opacity=".28" stroke-width="1.2">
+            <path d="M0 120 L120 60 L240 120"/><path d="M20 140 L120 90 L220 140"/><path d="M-20 100 L120 30 L260 100"/>
+            <path d="M60 150 L170 95"/><path d="M180 150 L70 95"/>
+          </g>
+          <ellipse cx="120" cy="96" rx="80" ry="30" fill="url(#g-glow)"/>
+          <g class="float">
+            <polygon points="62,78 132,42 182,68 112,104" fill="url(#g-teal)" stroke="#b6f03c" stroke-width="2"/>
+            <polygon points="62,78 112,104 112,112 62,86" fill="url(#g-lime-dark)"/>
+            <polygon points="112,104 182,68 182,76 112,112" fill="url(#g-lime-side)"/>
+            <polygon points="108,64 128,74 108,84" fill="url(#g-lime)" filter="url(#f-glow)" transform="skewX(-10) translate(14 0)"/>
+            <g transform="translate(78 64) skewY(-27)"><rect width="28" height="11" rx="3" fill="#b6f03c"/><text x="14" y="8.4" font-size="8" font-weight="800" text-anchor="middle" fill="#0a2230" font-family="Manrope, sans-serif">LIVE</text></g>
+          </g>
+          <g fill="none" stroke="#e4ff8a" stroke-width="2" stroke-linecap="round">
+            <path class="blink" d="M168 30 a18 18 0 0 1 18 18" /><path class="blink" style="animation-delay:-.6s" d="M168 18 a30 30 0 0 1 30 30" opacity=".6"/>
+          </g>
+        </svg>
+        <div class="num" data-count="live">0</div>
+        <div class="lbl">Live campaigns</div>
+      </div>
+
+      <div class="stat">
+        <svg class="ill" viewBox="0 0 240 150" preserveAspectRatio="xMidYMid slice">
+          <ellipse cx="120" cy="132" rx="64" ry="14" fill="url(#g-glow)"/>
+          <g class="float">
+            <rect x="88" y="16" width="64" height="8" rx="4" fill="url(#g-lime-side)"/>
+            <rect x="88" y="124" width="64" height="8" rx="4" fill="url(#g-lime-dark)"/>
+            <path d="M96 24 h48 c0 26 -18 32 -22 50 c4 18 22 24 22 50 h-48 c0 -26 18 -32 22 -50 c-4 -18 -22 -24 -22 -50z" fill="rgba(160,230,255,.08)" stroke="#b6f03c" stroke-opacity=".7" stroke-width="2"/>
+            <path d="M104 36 h32 c-3 14 -12 20 -16 30 c-4 -10 -13 -16 -16 -30z" fill="url(#g-lime)" filter="url(#f-glow)"/>
+            <rect class="blink" x="119" y="70" width="2" height="34" fill="#e4ff8a"/>
+            <path d="M102 122 c2 -12 10 -18 18 -20 c8 2 16 8 18 20z" fill="url(#g-lime)" filter="url(#f-glow)"/>
+          </g>
+          <g class="float d2" fill="#e4ff8a"><circle cx="60" cy="50" r="2"/><circle cx="182" cy="86" r="2.4"/><circle cx="170" cy="34" r="1.5"/></g>
+        </svg>
+        <div class="num" data-count="time">0</div>
+        <div class="lbl">Watch time left</div>
+      </div>
+    </div>
+
+    <div class="now" id="now">
+      <div class="ncard glow" id="now-drop"><h2>Now mining</h2><div class="nidle">Loading…</div></div>
+      <div class="ncard" id="now-chan"><h2>Watching</h2><div class="nidle">—</div></div>
+      <div class="ncard" id="now-points"><h2>Channel points</h2><div class="nidle">—</div></div>
+    </div>
+
+    <div class="panel">
+      <div class="phead">
+        <h2>Running drops</h2><span class="muted" id="run-sub"></span>
+        <div class="right">
+          <button class="sm" id="btn-sort-ending" title="Mine the drops that end soonest first">Sort by ending soonest</button>
+          <label class="check-line" style="font-size:12px"><input type="checkbox" id="s-auto-sort"> Keep sorted</label>
+          <div class="filters">
+            <button class="pill sm on" data-rf="all">All</button>
+            <button class="pill sm" data-rf="live">Live</button>
+            <button class="pill sm" data-rf="soon">Upcoming</button>
+          </div>
+          <button class="sm ghost" id="btn-expand">Expand all</button>
+        </div>
+      </div>
+      <div id="running"></div>
+      <div class="waiting" id="waiting" style="display:none"></div>
+    </div>
+
+    <div class="panel">
+      <div class="phead">
+        <h2>Completed drops</h2><span class="muted" id="done-sub"></span>
+        <div class="right">
+          <button class="sm ghost" id="btn-clear-old">Clear older than a day</button>
+          <button class="sm" id="btn-clear-all">Clear all</button>
+        </div>
+      </div>
+      <div id="completed"></div>
+    </div>
+  </section>
+
+  <!-- ===================== BROWSE -->
+  <section class="page" id="p-browse">
+    <div class="head">
+      <h1>Browse Drops</h1>
+      <span class="pillbox" id="dcount">Loading…</span>
+      <button class="round" id="btn-load-drops" title="Refresh"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button>
+      <div class="sub">Every drop campaign on Twitch you can earn. Add any of them, Steam game or not.</div>
+    </div>
+    <div class="panel">
+      <div class="phead">
+        <div class="filters">
+          <input id="dq" placeholder="Search game, campaign or reward…">
+          <button class="pill sm on" data-df="all">All</button>
+          <button class="pill sm" data-df="live">Live now</button>
+          <button class="pill sm" data-df="lib">In my library</button>
+          <button class="pill sm" data-df="mine">Added</button>
+        </div>
+        <div class="right">
+          <input id="add-name" placeholder="Not listed? Exact Twitch name" style="width:240px; border-radius:99px; padding:8px 14px">
+          <button class="sm lime" id="btn-add-tw">Add</button>
+        </div>
+      </div>
+      <div class="scroll xscroll" id="alldrops"><div class="empty">Loading…</div></div>
+    </div>
+  </section>
+
+  <!-- ===================== LIBRARY -->
+  <section class="page" id="p-library">
+    <div class="head">
+      <h1>Your Games</h1>
+      <span class="pillbox" id="games-count"></span>
+      <button class="sm" id="btn-scan-pc">Scan my PC</button>
+      <button class="sm" id="btn-refresh-lib">Refresh from Steam</button>
+      <div class="sub">Steam games come from your Steam account. <b>Scan my PC</b> adds games installed with Epic, EA app, Battle.net, Ubisoft Connect, Xbox, Rockstar, Riot and GOG (it runs by itself every 6 hours).</div>
+    </div>
+    <div class="panel">
+      <div class="legend">
+        <div><b>Off</b> — ignore this game.</div>
+        <div><b>Alerts</b> — Discord ping for drops and news. You watch yourself.</div>
+        <div><b>Auto-mine</b> — alerts, and the miner collects drops in the background.</div>
+        <div><b>Muted</b> — alerts, and Loot Radar opens a real muted stream to collect drops.</div>
+      </div>
+      <div class="phead">
+        <div class="filters">
+          <input id="q" placeholder="Search your games…">
+          <button class="pill sm on" data-f="played">Played 1h+ / installed</button>
+          <button class="pill sm" data-f="watched">Watching</button>
+          <button class="pill sm" data-f="other">Other launchers</button>
+          <button class="pill sm" data-f="all">All</button>
+        </div>
+      </div>
+      <div class="scroll xscroll" id="games"></div>
+    </div>
+  </section>
+
+  <!-- ===================== ACTIVITY -->
+  <section class="page" id="p-activity">
+    <div class="head">
+      <h1>Activity</h1>
+      <span class="pillbox" id="last-check"></span>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Muted-stream mode</h2><span class="muted">really watches a live drops stream, muted, at lowest quality</span></div>
+      <div style="padding:16px 18px" class="row" id="muted-box"></div>
+    </div>
+    <div class="panel">
+      <div class="phead"><h2>Log</h2><span class="muted">most recent first</span></div>
+      <div class="log" id="log"></div>
+    </div>
+  </section>
+
+  <!-- ===================== SETTINGS -->
+  <section class="page" id="p-settings">
+    <div class="head"><h1>Settings</h1></div>
+
+    <div class="cards3">
+      <div class="card" id="st-steam">
+        <h3><span class="n">1</span>Steam</h3>
+        <details id="help-steam"><summary>How to get these</summary>
+          <ol style="margin-top:8px">
+            <li>Open <a href="https://steamcommunity.com/dev/apikey" target="_blank">steamcommunity.com/dev/apikey</a> and sign in.</li>
+            <li>Domain name: type <b>localhost</b>, tick the box, click Register.</li>
+            <li>Copy the key into the box below.</li>
+            <li>Your Steam profile's <b>Game details</b> privacy must be <b>Public</b>.</li>
+          </ol></details>
+        <div class="field"><label>Steam API key</label><input id="f-key" placeholder="32-character key" autocomplete="off"></div>
+        <div class="field"><label>Your Steam profile link</label><input id="f-profile" placeholder="https://steamcommunity.com/id/yourname"></div>
+        <div class="row"><button class="lime" id="btn-save-steam">Connect &amp; load games</button></div>
+      </div>
+
+      <div class="card" id="st-discord">
+        <h3><span class="n">2</span>Discord</h3>
+        <details id="help-discord"><summary>How to get this</summary>
+          <ol style="margin-top:8px">
+            <li>Hover the channel you want alerts in and click ⚙️ (Edit Channel).</li>
+            <li><b>Integrations → Webhooks → New Webhook</b>.</li>
+            <li>Name it "Loot Radar", then <b>Copy Webhook URL</b>.</li>
+          </ol></details>
+        <div class="field"><label>Discord webhook link</label><input id="f-hook" placeholder="https://discord.com/api/webhooks/…" autocomplete="off"></div>
+        <div class="row"><button class="lime" id="btn-save-discord">Save</button><button id="btn-test-discord">Send test</button></div>
+        <label class="check-line"><input type="checkbox" id="s-sync-hook"> Let the miner post "drop claimed" messages here too</label>
+      </div>
+
+      <div class="card" id="st-miner">
+        <h3><span class="n">3</span>Drop miner</h3>
+        <details id="help-miner"><summary>How it works</summary>
+          <ol style="margin-top:8px">
+            <li>Press <b>Install miner</b>. Loot Radar downloads <a href="https://github.com/SimpliAj/twitchdropsminer" target="_blank">Twitch Drops Miner</a> from its official GitHub and starts it.</li>
+            <li>Press <b>Log the miner in to Twitch</b> and sign in.</li>
+            <li>Link your game accounts on <a href="https://www.twitch.tv/drops/campaigns" target="_blank">twitch.tv/drops/campaigns</a>.</li>
+          </ol></details>
+        <div class="muted" id="miner-summary">—</div>
+        <div class="row" id="miner-actions"></div>
+        <div class="faint" id="miner-job" style="display:none"></div>
+        <div class="row"><button class="lime" id="btn-miner-login">Log the miner in to Twitch</button><button id="btn-test-miner">Check connection</button></div>
+        <div class="faint" id="miner-login-note">You sign in once in Loot Radar's window; it passes the login to the miner. Muted mode uses the same sign-in. <a href="http://127.0.0.1:8080" target="_blank">Open miner dashboard</a></div>
+      </div>
+    </div>
+
+    <div class="panel" id="updates-panel">
+      <div class="phead"><h2>Updates</h2><span class="muted" id="upd-checked"></span>
+        <div class="right"><button class="sm" id="btn-upd-check">Check for updates</button></div></div>
+      <div class="xscroll"><table><thead><tr><th>App</th><th>You have</th><th>Newest</th><th></th></tr></thead><tbody id="upd-rows"></tbody></table></div>
+      <div style="padding:12px 18px 16px; display:grid; gap:8px">
+        <label class="check-line"><input type="checkbox" id="s-auto-start"> Start the built-in miner when Loot Radar starts</label>
+        <label class="check-line"><input type="checkbox" id="s-auto-update"> Install new miner versions automatically</label>
+        <label class="check-line"><input type="checkbox" id="s-lib-alerts"> Ping me about drops for games I have but haven't set up (installed from any launcher, or 1h+ on Steam)</label>
+        <div class="faint">Loot Radar checks GitHub every 6 hours and pings your Discord when something new is out.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="phead"><h2>Preferences</h2><div class="right"><button class="lime sm" id="btn-save-settings">Save preferences</button></div></div>
+      <div class="grid2">
+        <div class="field"><label>Steam news alerts</label>
+          <select id="s-news">
+            <option value="announcements">All official announcements (patch notes, events, leagues)</option>
+            <option value="important">Only ones mentioning drops, events, free stuff, leagues, seasons</option>
+            <option value="off">Off</option>
+          </select></div>
+        <div class="field"><label>Check Steam news every (hours)</label><input id="s-news-hours" type="number" min="1"></div>
+        <div class="field"><label>Restart the miner if it uses more than (MB)</label><input id="s-memlimit" type="number" min="0" step="256"><div class="hint">Protects your PC if the miner leaks memory. It keeps its Twitch login across restarts. 0 = off.</div></div>
+        <div class="field"><label>Miner address</label><input id="s-miner"><div class="hint">Leave as http://127.0.0.1:8080 unless you changed it.</div></div>
+        <div class="field"><label>Miner dashboard password (only if you set one)</label><input id="s-miner-pw" type="password" autocomplete="off"></div>
+        <div class="field"><label>Drop progress</label><div class="muted" style="padding-top:8px">Refreshed every 2 minutes automatically.</div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+let S = null, ALL = null, allErr = "";
+let filter = "played", dfilter = "all", rfilter = "all";
+let gamesSig = "", runSig = "", doneSig = "", allSig = "", formsFilled = false;
+const MODE_LABEL = { off: "Off", alerts: "Alerts", miner: "Auto-mine", muted: "Muted" };
+const STORE = { steam: "Steam", epic: "Epic", ea: "EA app", battlenet: "Battle.net", ubisoft: "Ubisoft", xbox: "Xbox", rockstar: "Rockstar", riot: "Riot", gog: "GOG", amazon: "Amazon", twitch: "Twitch" };
+
+function store(k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); } catch { return null; } }
+let OPEN = new Set(store("lr-open") || []);
+
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function toast(msg, kind = "") { const t = $("#toast"); t.textContent = msg; t.className = "toast " + kind; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 4200); }
+async function api(path, body) {
+  const r = await fetch(path, { method: body === undefined ? "GET" : "POST", headers: {"Content-Type": "application/json"}, body: body === undefined ? undefined : JSON.stringify(body) });
+  let j = {}; try { j = await r.json(); } catch {}
+  if (!r.ok || j.ok === false) throw new Error(j.error || ("Error " + r.status));
+  return j;
+}
+const nowS = () => S ? S.now + Math.floor((Date.now() - S._at) / 1000) : Date.now() / 1000;
+function ago(ts) { if (!ts) return "never"; const s = Math.max(0, nowS() - ts); if (s < 60) return "just now"; if (s < 3600) return Math.floor(s/60) + " min ago"; if (s < 86400) return Math.floor(s/3600) + " h ago"; return Math.floor(s/86400) + " d ago"; }
+function when(iso) { if (!iso) return "?"; return new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); }
+function until(iso) {
+  if (!iso) return "?"; const s = (new Date(iso).getTime() / 1000) - nowS();
+  if (s <= 0) return "ended"; if (s < 3600) return Math.ceil(s / 60) + "m"; if (s < 86400) return Math.floor(s / 3600) + "h " + Math.floor((s % 3600) / 60) + "m";
+  return Math.floor(s / 86400) + "d " + Math.floor((s % 86400) / 3600) + "h";
+}
+function hm(min) { min = Math.round(min || 0); return min >= 60 ? `${Math.floor(min/60)}h${min % 60 ? " " + (min % 60) + "m" : ""}` : `${min}m`; }
+function hours(min) { const h = (min || 0) / 60; return h >= 10 ? Math.round(h) + " h" : h.toFixed(1) + " h"; }
+function boxArt(u, w = 84, h = 112) { return String(u || "").replace("{width}", w).replace("{height}", h); }
+function img(src, cls, alt = "") { return src ? `<img class="${cls}" loading="lazy" src="${esc(src)}" alt="${esc(alt)}" onerror="this.style.visibility='hidden'">` : `<span class="${cls}"></span>`; }
+function dot(id, cls, text, title = "") { const c = $(id); c.className = "dot " + cls; c.innerHTML = `<i></i>${esc(text)}`; c.title = title; }
+
+/* ---------------- routing */
+const PAGES = ["overview", "browse", "library", "activity", "settings"];
+function route() {
+  let p = (location.hash.match(/^#\/(\w+)/) || [])[1];
+  if (!PAGES.includes(p)) p = "overview";
+  $$(".page").forEach(el => el.classList.toggle("on", el.id === "p-" + p));
+  $$("#tabs a").forEach(a => a.classList.toggle("on", a.dataset.p === p));
+  if (p === "browse" && !ALL) loadAllDrops();
+  window.scrollTo({ top: 0 });
+}
+window.addEventListener("hashchange", route);
+
+/* ---------------- header + overview */
+function render() {
+  const st = S.settings;
+  const steamOk = !!(st.steam_api_key && st.steam_id), hookOk = !!st.discord_webhook, mOk = S.miner_status === "ok";
+  dot("#c-steam", steamOk ? "ok" : "bad", steamOk ? "Steam" : "Steam off");
+  dot("#c-discord", hookOk ? "ok" : "warn", "Discord");
+  const mem = S.miner_memory, limit = st.miner_memory_limit_mb || 0;
+  const memTxt = mem ? " · " + (mem.total_mb >= 1024 ? (mem.total_mb / 1024).toFixed(1) + " GB" : mem.total_mb + " MB") : "";
+  const memHigh = mem && limit && mem.total_mb > limit * .8;
+  dot("#c-miner", mOk ? ((S.miner_paused_by_us || memHigh) ? "warn" : "ok") : "bad",
+      (mOk ? (S.miner_paused_by_us ? "Miner paused" : "Miner") : "Miner offline") + memTxt,
+      (mOk ? "" : S.miner_status + "\n") + (mem ? "Memory: " + Object.entries(mem.parts).map(([k, v]) => `${k} ${v} MB`).join(", ") : ""));
+  const mu = S.muted || {};
+  dot("#c-muted", mu.state === "watching" ? "live" : ["error", "needs_login"].includes(mu.state) ? "warn" : "",
+      mu.state === "watching" ? "Muted · " + (mu.channel || "") : "Muted");
+
+  const missing = [!steamOk && "Steam", !hookOk && "Discord", !mOk && "drop miner"].filter(Boolean);
+  $("#setup-banner").style.display = missing.length ? "" : "none";
+  $("#setup-missing").textContent = missing.length ? "Still to connect: " + missing.join(", ") + "." : "";
+  ["st-steam", "st-discord", "st-miner"].forEach((id, i) => $("#" + id).classList.toggle("done", [steamOk, hookOk, mOk][i]));
+  renderMinerCard(mOk, mem, memTxt);
+  renderUpdates();
+  const ml = S.miner_login || {};
+  if (ml.state && ml.state !== "idle") {
+    const txt = { waiting: "⏳ Sign in to Twitch in the window that opened.", working: "⏳ Passing the login to the miner…", done: "✅ " + ml.note, error: "⚠️ " + ml.note }[ml.state];
+    $("#miner-login-note").innerHTML = esc(txt) + ' <a href="http://127.0.0.1:8080" target="_blank">Open miner dashboard</a>';
+  }
+
+  // watching pill
+  const watching = mu.state === "watching" ? `Muted mode on <b>${esc(mu.channel)}</b>` : mOk ? (S.miner_paused_by_us ? "Miner paused" : "Miner <b>running</b>") : "Miner <b>offline</b>";
+  $("#watching-pill").innerHTML = watching + ` <span class="faint">· checked ${esc(ago(S.last_check))}</span>`;
+  $("#last-check").innerHTML = `Last check <b>${esc(ago(S.last_check))}</b>`;
+  const mb = $("#muted-banner");
+  if (["needs_login", "paused", "error"].includes(mu.state)) {
+    mb.style.display = "";
+    mb.innerHTML = { needs_login: "<b>Muted mode:</b> sign in to Twitch in the window that opened (one time).",
+      paused: '<b>Muted mode paused</b> <span class="muted">— you closed its window.</span> <button class="sm" data-act="muted-resume" style="margin-left:auto">Resume</button>',
+      error: `<b>Muted mode:</b> <span class="muted">${esc(mu.note)}</span>` }[mu.state];
+  } else mb.style.display = "none";
+
+  fillForms();
+  renderStats(); renderRunning(); renderCompleted(); renderMuted(); renderGames(); renderLog();
+}
+
+function activeCamps() { return S.campaigns.filter(c => !(c.total_drops && c.claimed_drops >= c.total_drops) && c.drops.some(d => !d.claimed)); }
+
+function renderStats() {
+  const camps = activeCamps();
+  const live = camps.filter(c => c.active);
+  const inProg = live.flatMap(c => c.drops.filter(d => !d.claimed));
+  const left = live.filter(c => c.linked && c.mode !== "alerts").flatMap(c => c.drops.filter(d => !d.claimed)).reduce((a, d) => a + Math.max(0, d.required - d.current), 0);
+  countTo("claimed", S.claimed_total || 0);
+  countTo("progress", inProg.length);
+  countTo("live", live.length);
+  countTo("time", left, true);
+}
+const counted = {};
+function countTo(key, target, isTime) {
+  const el = document.querySelector(`[data-count="${key}"]`); if (!el) return;
+  const from = counted[key] ?? 0; counted[key] = target;
+  const fmt = v => isTime ? (v >= 60 ? `${Math.floor(v / 60)}<small>h</small> ${Math.round(v % 60)}<small>m</small>` : `${Math.round(v)}<small>m</small>`) : Math.round(v).toLocaleString();
+  if (from === target) { el.innerHTML = fmt(target); return; }
+  const t0 = performance.now(), dur = 700;
+  const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.innerHTML = fmt(from + (target - from) * e); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+
+function renderRunning() {
+  const camps = activeCamps();
+  const groups = new Map();
+  for (const c of camps) { if (!groups.has(c.game_name)) groups.set(c.game_name, []); groups.get(c.game_name).push(c); }
+  let list = [...groups.entries()].map(([name, cs]) => {
+    const drops = cs.flatMap(c => c.drops);
+    const req = drops.reduce((a, d) => a + d.required, 0), cur = drops.reduce((a, d) => a + (d.claimed ? d.required : Math.min(d.current, d.required)), 0);
+    const active = cs.some(c => c.active), ends = cs.filter(c => c.active).map(c => c.ends_at).sort()[0] || cs.map(c => c.ends_at).sort()[0];
+    const starts = cs.map(c => c.starts_at).sort()[0];
+    return { name, cs, active, ends, starts, pct: req ? Math.round(cur / req * 100) : 0, claimed: drops.filter(d => d.claimed).length, total: drops.length,
+             linked: cs.every(c => c.linked), link: (cs.find(c => !c.linked) || {}).link_url, mode: cs[0].mode, art: cs[0].box_art, left: drops.filter(d => !d.claimed).length,
+             appid: cs[0].appid };
+  });
+  const prio = S.settings.priority || [], rank = new Map(prio.map((k, i) => [k, i]));
+  list.sort((a, b) => ((rank.has(a.appid) ? rank.get(a.appid) : 1e6) - (rank.has(b.appid) ? rank.get(b.appid) : 1e6))
+    || (b.active - a.active) || String(a.ends).localeCompare(String(b.ends)));
+  list.forEach((g, i) => g.pos = i + 1);
+  RUN_ORDER = list.map(g => g.appid);
+  // queued games with no campaign right now (like the miner's "waiting for campaign")
+  const running = new Set(list.map(g => g.appid)), byKey = Object.fromEntries(S.games.map(x => [x.appid, x]));
+  const waiting = prio.filter(k => !running.has(k) && byKey[k] && ["miner", "muted"].includes(byKey[k].mode)).map(k => byKey[k].name);
+  $("#waiting").style.display = waiting.length ? "" : "none";
+  $("#waiting").innerHTML = `<span class="faint">Waiting for a campaign:</span>` + waiting.map(n => `<span class="chip">${esc(n)}</span>`).join("");
+  $("#s-auto-sort").checked = !!S.settings.priority_auto_sort;
+  const totalGames = list.length;
+  if (rfilter === "live") list = list.filter(g => g.active);
+  if (rfilter === "soon") list = list.filter(g => !g.active);
+  $("#run-sub").textContent = totalGames ? `${totalGames} game${totalGames === 1 ? "" : "s"} · ${list.reduce((a, g) => a + g.left, 0)} drops to go` : "";
+  $("#btn-expand").textContent = list.length && list.every(g => OPEN.has(g.name)) ? "Collapse all" : "Expand all";
+  const sig = JSON.stringify([rfilter, [...OPEN], list.map(g => [g.name, g.pos, g.pct, g.claimed, g.active, g.linked, g.cs.map(c => c.drops.map(d => [d.current, d.claimed]))]), S.muted && S.muted.channel]);
+  if (sig === runSig) return; runSig = sig;
+  if (!list.length) {
+    const watched = S.games.filter(x => x.mode !== "off").length;
+    $("#running").innerHTML = `<div class="empty">${S.miner_status !== "ok" ? "Start the drop miner to see your drop campaigns." : !watched ? 'Pick some games in <a href="#/library">Library</a> or <a href="#/browse">Browse drops</a>.' : totalGames ? "Nothing in this filter." : "No running drops for your games right now. You'll get a Discord ping when one starts."}</div>`;
+    return;
+  }
+  $("#running").innerHTML = list.map((g, i) => {
+    const status = !g.linked ? `<a class="tag warn" href="${esc(g.link || "https://www.twitch.tv/drops/campaigns")}" target="_blank" onclick="event.stopPropagation()">Link account</a>`
+      : g.active ? `<span class="tag live">Live</span>` : `<span class="tag soon">Starts ${esc(until(g.starts))}</span>`;
+    const body = g.cs.map(c => {
+      const pending = c.drops.filter(d => !d.claimed);
+      const nextIdx = pending.findIndex(d => d.current < d.required);
+      return `<div class="camp"><div class="ch"><b>${esc(c.name)}</b>
+          ${c.active ? '<span class="tag live">Live</span>' : `<span class="tag soon">Starts ${esc(when(c.starts_at))}</span>`}
+          <span class="faint">ends ${esc(when(c.ends_at))} · ${c.claimed_drops || 0}/${c.total_drops || c.drops.length} claimed${c.subs_only ? " · needs a sub" : ""}</span>
+          ${c.active && c.linked ? `<button class="sm" style="margin-left:auto" data-watch="${esc(c.game_name)}">Watch muted</button>` : ""}</div>
+        ${pending.map((d, k) => {
+          const p = d.required ? Math.min(100, Math.round(d.current / d.required * 100)) : 0;
+          return `<div class="drop ${k === nextIdx ? "next" : ""}">${img(d.image, "art sq")}
+            <div><b>${esc(d.name)}</b><div class="faint">${k === nextIdx ? "Up next" : "Queued"}${d.subs ? " · needs a sub" : ""}</div></div>
+            <div class="bar hide-sm"><b style="width:${p}%"></b></div>
+            <div class="faint hide-sm" style="text-align:right">${hm(d.current)} / ${hm(d.required)}</div></div>`;
+        }).join("")}</div>`;
+    }).join("");
+    return `<div class="game ${OPEN.has(g.name) ? "open" : ""}" data-game="${esc(g.name)}" data-key="${esc(g.appid)}">
+      <div class="grow" draggable="true">
+        <span class="prio" title="Drag to change the mining order"><svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="2" cy="3" r="1.5"/><circle cx="8" cy="3" r="1.5"/><circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="2" cy="13" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg><b>#${g.pos}</b></span>
+        <div class="who">${img(boxArt(g.art), "art")}<div style="min-width:0"><b>${esc(g.name)}</b>
+          <div class="faint">${g.cs.length} campaign${g.cs.length === 1 ? "" : "s"} · ${g.left} drop${g.left === 1 ? "" : "s"} left · <span style="color:var(--violet)">${MODE_LABEL[g.mode]}</span></div></div></div>
+        <div class="hide-md hide-sm"><div class="bar"><b style="width:${g.pct}%"></b></div><div class="faint" style="margin-top:5px">${g.claimed}/${g.total} claimed · ${g.pct}%</div></div>
+        <div class="hide-sm">${status}</div>
+        <div class="hide-md hide-sm faint">${g.active ? "Ends in " + esc(until(g.ends)) : "Starts in " + esc(until(g.starts))}</div>
+        <div class="gacts">
+          <button class="round" data-move="-1" title="Mine this earlier" ${g.pos === 1 ? "disabled" : ""}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+          <button class="round" data-move="1" title="Mine this later" ${g.pos === RUN_ORDER.length ? "disabled" : ""}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
+          <button class="round chev" aria-label="Expand"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+        </div>
+      </div>
+      <div class="gbody">${body}</div>
+    </div>`;
+  }).join("");
+}
+
+let RUN_ORDER = [];
+async function applyRunOrder(newRun) {
+  // put the running games' new order into the full priority list, keeping everyone else's place
+  const full = [...(S.settings.priority || [])];
+  newRun.forEach(k => { if (!full.includes(k)) full.push(k); });
+  const set = new Set(newRun), slots = full.map((k, i) => set.has(k) ? i : -1).filter(i => i >= 0);
+  slots.forEach((slot, j) => full[slot] = newRun[j]);
+  S.settings.priority = full; S.settings.priority_auto_sort = false; runSig = ""; renderRunning();
+  try { await api("/api/priority", { order: full }); toast("Mining order saved.", "ok"); }
+  catch (e) { toast(e.message, "bad"); refresh(); }
+}
+function moveGame(key, delta) {
+  const o = [...RUN_ORDER], i = o.indexOf(key), j = i + delta;
+  if (i < 0 || j < 0 || j >= o.length) return;
+  [o[i], o[j]] = [o[j], o[i]]; applyRunOrder(o);
+}
+// drag and drop
+let DRAG = null;
+document.addEventListener("dragstart", e => {
+  const g = e.target.closest && e.target.closest(".game"); if (!g) return;
+  DRAG = g.dataset.key; g.classList.add("dragging"); e.dataTransfer.effectAllowed = "move";
+  try { e.dataTransfer.setData("text/plain", DRAG); } catch {}
+});
+document.addEventListener("dragover", e => {
+  const g = e.target.closest && e.target.closest(".game"); if (!g || !DRAG) return;
+  e.preventDefault(); const r = g.getBoundingClientRect(), below = e.clientY > r.top + r.height / 2;
+  $$(".game").forEach(x => x.classList.remove("drop-above", "drop-below"));
+  if (g.dataset.key !== DRAG) g.classList.add(below ? "drop-below" : "drop-above");
+});
+document.addEventListener("drop", e => {
+  const g = e.target.closest && e.target.closest(".game"); if (!g || !DRAG) return;
+  e.preventDefault(); const below = g.classList.contains("drop-below");
+  const o = RUN_ORDER.filter(k => k !== DRAG), at = o.indexOf(g.dataset.key);
+  if (at >= 0 && g.dataset.key !== DRAG) { o.splice(below ? at + 1 : at, 0, DRAG); applyRunOrder(o); }
+});
+document.addEventListener("dragend", () => { DRAG = null; $$(".game").forEach(x => x.classList.remove("dragging", "drop-above", "drop-below")); });
+
+function renderCompleted() {
+  const done = S.completed || [];
+  $("#done-sub").textContent = done.length ? `${done.length} reward${done.length === 1 ? "" : "s"}` : "";
+  $("#btn-clear-all").disabled = $("#btn-clear-old").disabled = !done.length;
+  const sig = JSON.stringify(done.map(d => d.id)) + Math.floor(nowS() / 60);
+  if (sig === doneSig) return; doneSig = sig;
+  $("#completed").innerHTML = done.length ? `<div class="done-grid">${done.map(d => `
+    <div class="done">${img(d.image || boxArt(d.box_art, 92, 92), "art sq", d.reward)}
+      <div style="min-width:0"><b>${esc(d.reward)}</b><div class="faint">${esc(d.game_name)} · ${esc(ago(d.ts))}</div></div>
+      <span class="check"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></span>
+    </div>`).join("")}</div>`
+    : `<div class="empty">Claimed rewards show up here. Clear them whenever you like.</div>`;
+}
+
+function renderMuted() {
+  const m = S.muted || {};
+  let html = "";
+  if (m.state === "watching") html = `<span class="tag live">Watching</span> <b>${esc(m.channel)}</b> for ${esc(m.game)} <a href="https://www.twitch.tv/${esc(m.channel)}" target="_blank">open</a>`;
+  else if (m.state === "waiting") html = `<span class="tag soon">Waiting</span> ${esc(m.note)}. It checks again every 10 minutes.`;
+  else if (m.state === "needs_login") html = `<span class="tag warn">Sign in</span> A browser window opened — sign in to Twitch there once.`;
+  else if (m.state === "paused") html = `<span class="tag warn">Paused</span> You closed the muted window. <button class="sm" data-act="muted-resume">Resume muted mode</button>`;
+  else if (m.state === "error") html = `<span class="tag warn">Error</span> ${esc(m.note)}`;
+  else if (m.state === "off") html = `<span class="muted">Disabled.</span>`;
+  else html = `<span class="muted">Idle. Set a game to <b>Muted</b> and it starts automatically when that game has live drops, or press <b>Watch muted</b> on a running drop.</span>`;
+  if (S.muted_manual || ["watching", "waiting", "needs_login", "error"].includes(m.state)) html += ` <button class="sm" data-act="muted-stop">Stop</button>`;
+  $("#muted-box").innerHTML = html;
+}
+
+/* ---------------- library */
+function renderGames() {
+  if (document.activeElement && document.activeElement.classList.contains("tw")) return;
+  const q = $("#q").value.trim().toLowerCase();
+  let g = S.games.filter(x => !q || x.name.toLowerCase().includes(q));
+  const srcOf = x => x.appid.startsWith("tw:") ? "twitch" : /^\d+$/.test(x.appid) ? "steam" : (x.source || x.appid.split(":")[0]);
+  if (filter === "played") g = g.filter(x => x.playtime_min >= 60 || x.mode !== "off" || !["steam", "twitch"].includes(srcOf(x)));
+  if (filter === "watched") g = g.filter(x => x.mode !== "off");
+  if (filter === "other") g = g.filter(x => !["steam", "twitch"].includes(srcOf(x)));
+  const others = S.games.filter(x => !/^\d+$/.test(x.appid) && !x.appid.startsWith("tw:")).length;
+  $("#games-count").innerHTML = `<b>${S.games.filter(x => x.mode !== "off").length}</b> watched · <b>${S.games.length - others - S.games.filter(x => x.appid.startsWith("tw:")).length}</b> on Steam · <b>${others}</b> other launchers`;
+  const sig = JSON.stringify([q, filter, g.map(x => [x.appid, x.mode, x.twitch_name, x.playtime_min])]);
+  if (sig === gamesSig) return; gamesSig = sig;
+  if (!S.games.length) { $("#games").innerHTML = `<div class="empty">Connect Steam in <a href="#/settings">Settings</a> to load your library.</div>`; return; }
+  if (!g.length) { $("#games").innerHTML = `<div class="empty">No games match.</div>`; return; }
+  $("#games").innerHTML = `<table><thead><tr><th>#</th><th>Game</th><th>Store</th><th>Hours</th><th class="hide-sm">Last played</th><th>Mode</th><th class="hide-sm">Twitch name</th></tr></thead><tbody>${
+    g.map((x, i) => { const src = srcOf(x), tw = src === "twitch", steam = src === "steam"; return `<tr data-appid="${esc(x.appid)}">
+      <td class="rank">${i + 1}</td>
+      <td><div class="who">${tw ? img(boxArt(x.box_art, 108, 144), "cap") : steam ? img(`https://cdn.cloudflare.steamstatic.com/steam/apps/${x.appid}/capsule_184x69.jpg`, "cap") : `<span class="tile">${esc(STORE[src] || src)}</span>`}
+        <div style="min-width:0"><b>${esc(x.name)}</b>${!steam && !tw && x.removed ? '<div class="faint">Not installed any more</div>' : !steam && !tw && x.installed === false ? '<div class="faint">Owned, not installed (GOG Galaxy)</div>' : ""}</div></div></td>
+      <td><span class="store ${esc(src)}">${esc(STORE[src] || src)}</span></td>
+      <td>${steam || x.playtime_min ? hours(x.playtime_min) : tw ? '<span class="faint">—</span>' : `<span class="faint">${x.installed === false ? "Owned" : "Installed"}</span>`}</td>
+      <td class="hide-sm muted">${x.last_played ? new Date(x.last_played * 1000).toLocaleDateString() : "—"}</td>
+      <td><div class="seg">${["off","alerts","miner","muted"].map(m => `<button data-m="${m}" class="${x.mode === m ? "on" : ""}">${MODE_LABEL[m]}</button>`).join("")}</div></td>
+      <td class="hide-sm">${tw ? '<span class="faint">Twitch game</span>' : `<input class="tw" value="${esc(x.twitch_name || "")}" placeholder="same as ${steam ? "Steam" : "here"}">`}</td></tr>`; }).join("")
+  }</tbody></table>`;
+}
+
+/* ---------------- browse */
+async function loadAllDrops() {
+  try { const r = await api("/api/twitch-drops"); ALL = r.games; allErr = ""; }
+  catch (e) { allErr = e.message; }
+  allSig = ""; renderAllDrops();
+}
+function renderAllDrops() {
+  const el = $("#alldrops");
+  if (allErr && !ALL) { el.innerHTML = `<div class="empty">${esc(allErr)}</div>`; $("#dcount").textContent = "Miner offline"; return; }
+  if (!ALL) return;
+  const q = $("#dq").value.trim().toLowerCase();
+  let g = ALL.filter(x => !q || x.game_name.toLowerCase().includes(q) || (x.owned || "").toLowerCase().includes(q)
+    || x.campaigns.some(c => (c.name || "").toLowerCase().includes(q) || c.rewards.some(r => (r || "").toLowerCase().includes(q))));
+  if (dfilter === "live") g = g.filter(x => x.active);
+  if (dfilter === "mine") g = g.filter(x => x.mode !== "off");
+  if (dfilter === "lib") g = g.filter(x => x.owned);
+  $("#dcount").innerHTML = `<b>${g.length}</b> of ${ALL.length} games`;
+  const sig = JSON.stringify([q, dfilter, g.map(x => [x.game_name, x.mode])]);
+  if (sig === allSig) return; allSig = sig;
+  if (!g.length) { el.innerHTML = `<div class="empty">Nothing matches. If the game has drops but isn't listed, type its exact Twitch name and press Add.</div>`; return; }
+  const same = (a, b) => a.toLowerCase().replace(/[^a-z0-9]/g, "") === b.toLowerCase().replace(/[^a-z0-9]/g, "");
+  el.innerHTML = `<table><thead><tr><th>#</th><th>Twitch game</th><th>Campaigns &amp; rewards</th><th>Account</th><th>Mode</th></tr></thead><tbody>${
+    g.map((x, i) => {
+      const linked = x.campaigns.every(c => c.linked);
+      const link = (x.campaigns.find(c => !c.linked) || {}).link_url || "https://www.twitch.tv/drops/campaigns";
+      const camps = x.campaigns.map(c => `<div style="margin:4px 0"><b>${esc(c.name)}</b>
+          ${c.active ? '<span class="tag live">Live</span>' : `<span class="tag soon">Starts ${esc(when(c.starts_at))}</span>`}
+          <span class="faint">ends ${esc(when(c.ends_at))}${c.total_drops ? ` · ${c.claimed_drops || 0}/${c.total_drops} claimed` : ""}</span>
+          <div class="faint">${c.rewards.slice(0, 6).map(esc).join(" · ")}${c.rewards.length > 6 ? ` · +${c.rewards.length - 6} more` : ""}</div></div>`).join("");
+      return `<tr data-appid="${esc(x.appid || "")}" data-game="${esc(x.game_name)}" data-art="${esc(x.box_art)}">
+        <td class="rank">${i + 1}</td>
+        <td><div class="who">${img(boxArt(x.box_art), "art")}<div><b>${esc(x.game_name)}</b>
+          ${x.owned ? `<div class="row" style="gap:6px;margin-top:3px"><span class="store ${esc(x.source)}">${x.source === "steam" ? "On Steam" : (x.installed === false ? "Owned · " : "Installed · ") + esc(STORE[x.source] || x.source)}</span>${!same(x.owned, x.game_name) ? `<span class="faint">${esc(x.owned)}</span>` : ""}</div>` : ""}</div></div></td>
+        <td>${camps}</td>
+        <td>${linked ? '<span class="tag ok">Linked</span>' : `<a class="tag warn" href="${esc(link)}" target="_blank">Link account</a>`}</td>
+        <td><div class="seg" data-src="all">${["off","alerts","miner","muted"].map(m => `<button data-m="${m}" class="${x.mode === m ? "on" : ""}">${MODE_LABEL[m]}</button>`).join("")}</div></td></tr>`;
+    }).join("")}</tbody></table>`;
+}
+
+/* ---------------- activity + settings */
+function renderLog() {
+  $("#log").innerHTML = S.log.map(l => `<div class="${l.level}"><time>${new Date(l.ts * 1000).toLocaleString(undefined, {day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"})}</time><span>${esc(l.msg)}</span></div>`).join("") || `<div>Nothing yet.</div>`;
+}
+function renderMinerCard(mOk, mem, memTxt) {
+  const bi = S.miner_builtin, job = S.miner_job || {}, busy = ["downloading", "installing"].includes(job.state);
+  const upd = (S.updates || {}).miner || {};
+  let sum;
+  if (bi) sum = `<span class="tag ${mOk ? "live" : S.miner_running ? "soon" : "warn"}">${mOk ? "Running" : S.miner_running ? "Starting…" : "Stopped"}</span> <span class="faint">Built-in miner v${esc(bi.version || "?")}${mOk && mem ? " · using " + memTxt.slice(3) : ""}</span>`;
+  else if (S.miner_running) sum = `<span class="tag ok">Your own copy</span> <span class="faint">Install the built-in miner to get one-click updates. Your Twitch login carries over.</span>`;
+  else sum = `<span class="tag warn">Not installed</span> <span class="faint">One click: Loot Radar downloads it from the miner's official GitHub.</span>`;
+  $("#miner-summary").innerHTML = sum;
+  const acts = [];
+  if (!bi) acts.push(`<button class="lime" data-act="miner-install" ${busy ? "disabled" : ""}>Install miner</button>`);
+  else {
+    if (upd.available) acts.push(`<button class="lime" data-act="miner-install" ${busy ? "disabled" : ""}>Update to v${esc(upd.latest)}</button>`);
+    acts.push(S.miner_running ? `<button data-act="miner-stop" ${busy ? "disabled" : ""}>Stop</button>` : `<button data-act="miner-start" ${busy ? "disabled" : ""}>Start</button>`);
+    if (S.miner_running) acts.push(`<button class="ghost" data-act="miner-restart" ${busy ? "disabled" : ""}>Restart</button>`);
+  }
+  $("#miner-actions").innerHTML = acts.join("");
+  const jb = $("#miner-job");
+  if (job.state && job.state !== "idle") {
+    jb.style.display = "";
+    jb.innerHTML = busy ? `<div class="bar" style="margin-bottom:6px"><b style="width:${job.pct || 3}%"></b></div>${esc(job.note)}` : (job.state === "error" ? "⚠️ " : "✅ ") + esc(job.note);
+  } else jb.style.display = "none";
+}
+
+function renderUpdates() {
+  const u = S.updates || {}, lr = u.loot_radar || {}, mn = u.miner || {};
+  const uj = S.update_job || {}, mj = S.miner_job || {}, mBusy = ["downloading", "installing"].includes(mj.state);
+  $("#upd-checked").textContent = u.checked ? "checked " + ago(u.checked) : "not checked yet";
+  const row = (name, link, cur, latest, avail, err, btn) => `<tr><td><b>${name}</b> <a class="faint" href="${esc(link)}" target="_blank">GitHub</a></td>
+    <td>${esc(cur || "—")}</td><td>${err ? `<span class="faint">${esc(err)}</span>` : esc(latest || "—")} ${avail ? '<span class="tag live">New</span>' : latest ? '<span class="tag ok">Up to date</span>' : ""}</td><td style="text-align:right">${btn}</td></tr>`;
+  const lrBtn = !lr.configured ? '<span class="faint">Update source not set</span>'
+    : uj.state === "working" ? `<span class="faint">${esc(uj.note)}</span>`
+    : uj.state === "done" ? `<span class="tag live">${esc(uj.note)}</span>`
+    : lr.available ? '<button class="lime sm" data-act="lr-update">Update Loot Radar</button>' : "";
+  const mnBtn = mBusy ? `<span class="faint">${esc(mj.note)}</span>`
+    : !S.miner_builtin ? '<button class="sm" data-act="miner-install">Install built-in miner</button>'
+    : mn.available ? `<button class="lime sm" data-act="miner-install">Update miner</button>` : "";
+  $("#upd-rows").innerHTML = row("Loot Radar", lr.page || "#", S.version, lr.latest, lr.available, lr.error, lrBtn)
+    + row("Drop miner", mn.page || "https://github.com/SimpliAj/twitchdropsminer/releases", mn.current, mn.latest, mn.available, mn.error, mnBtn);
+  const ub = $("#update-banner"), items = [];
+  if (uj.state === "working" || uj.state === "done") items.push(`<b>${esc(uj.note)}</b>`);
+  else {
+    if (lr.available) items.push(`<b>Loot Radar ${esc(lr.latest)}</b> is out`);
+    if (mn.available && S.miner_builtin) items.push(`<b>Drop miner ${esc(mn.latest)}</b> is out`);
+    if (uj.state === "error") items.push(`<span style="color:var(--red)">${esc(uj.note)}</span>`);
+  }
+  ub.style.display = items.length ? "" : "none";
+  ub.innerHTML = items.join(" · ") + (uj.state === "working" || uj.state === "done" ? "" : ' <a href="#/settings" style="margin-left:auto"><button class="sm">See updates</button></a>');
+  $("#setup-badge").style.display = (lr.available || (mn.available && S.miner_builtin) || $("#setup-banner").style.display !== "none") ? "" : "none";
+}
+
+function fillForms() {
+  if (formsFilled) return; formsFilled = true;
+  const st = S.settings;
+  $("#f-key").value = st.steam_api_key || ""; $("#f-profile").value = st.steam_profile_input || ""; $("#f-hook").value = st.discord_webhook || "";
+  $("#s-sync-hook").checked = !!st.sync_miner_webhook;
+  $("#s-news").value = st.news_mode || "announcements"; $("#s-news-hours").value = st.news_check_hours || 3;
+  $("#s-miner").value = st.miner_url || "http://127.0.0.1:8080"; $("#s-miner-pw").value = st.miner_password || "";
+  $("#s-memlimit").value = st.miner_memory_limit_mb ?? 2048;
+  $("#s-auto-start").checked = st.auto_start_miner !== false; $("#s-auto-update").checked = !!st.auto_update_miner;
+  $("#s-lib-alerts").checked = st.alert_library_drops !== false;
+  if (!(st.steam_api_key && st.steam_id)) $("#help-steam").open = true;
+  if (!st.discord_webhook) $("#help-discord").open = true;
+}
+
+/* ---------------- now mining */
+let NOW = null, nowAt = 0;
+async function loadNow() {
+  if (document.hidden || !$("#p-overview").classList.contains("on")) return;
+  try {
+    const next = await api("/api/now"), a = NOW && NOW.drop, b = next.drop;
+    // The miner only refreshes its remaining time about once a minute; keep our own clock
+    // running in between and resync only when it reports a new value (or a new drop).
+    const same = a && b && a.drop_id === b.drop_id && a.remaining_seconds === b.remaining_seconds;
+    if (!same) nowAt = Date.now();
+    NOW = next; renderNow();
+  } catch {}
+}
+function mmss(sec) {
+  sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s).padStart(2, "0");
+}
+function renderNow() {
+  if (!NOW) return;
+  const box = $("#now-drop"), cbox = $("#now-chan"), pbox = $("#now-points");
+  const mu = NOW.muted || {};
+  if (!NOW.online) {
+    const canStart = S && S.miner_builtin;
+    box.innerHTML = `<h2>Now mining</h2><div class="nidle"><span><span class="tag warn">Miner offline</span> ${esc(NOW.error || "")}</span>
+      ${canStart ? '<button class="lime sm" data-act="miner-start">Start the miner</button>' : '<a href="#/settings"><button class="sm">Open settings</button></a>'}</div>`;
+    cbox.innerHTML = `<h2>Watching</h2><div class="nidle">—</div>`; pbox.innerHTML = `<h2>Channel points</h2><div class="nidle">—</div>`;
+    return;
+  }
+  const d = NOW.drop;
+  if (mu.state === "watching" && !d) {
+    // muted mode is really watching; the miner is paused meanwhile
+    const camp = (S ? S.campaigns : []).find(c => c.game_name === mu.game && c.active && c.drops.some(x => !x.claimed));
+    const nd = camp && camp.drops.find(x => !x.claimed && x.current < x.required);
+    const pct = nd && nd.required ? Math.min(100, Math.round(nd.current / nd.required * 100)) : 0;
+    box.innerHTML = `<h2>Now mining <span class="tag mode">Muted mode</span></h2>
+      ${nd ? `<div class="ndrop">${img(nd.image, "rimg")}<div style="min-width:0"><div class="t">${esc(nd.name)}</div><div class="muted">${esc(camp.name)} · ${esc(camp.game_name)}</div></div></div>
+      <div class="bigbar"><b style="width:${pct}%"></b><span>${pct}%</span></div>
+      <div class="nmeta"><span>${nd.current} / ${nd.required} minutes</span><span>about ${hm(nd.required - nd.current)} to go · updates every 2 min</span></div>`
+      : `<div class="nidle">Watching ${esc(mu.channel)} for ${esc(mu.game)}.</div>`}`;
+  } else if (!d) {
+    box.innerHTML = `<h2>Now mining</h2><div class="nidle"><span>${NOW.paused ? '<span class="tag soon">Paused</span> ' : ""}Not mining a drop right now.</span>
+      <span class="faint">${esc(NOW.status || "Waiting for a live campaign for one of your games.")}</span></div>`;
+  } else {
+    box.innerHTML = `<h2>Now mining <span class="tag live">Live</span><span class="right faint">${esc(NOW.status || "")}</span></h2>
+      <div class="ndrop">${img(d.image || boxArt(d.box_art, 92, 92), "rimg", d.drop_name)}
+        <div style="min-width:0"><div class="t">${esc(d.drop_name)}</div><div class="muted">${esc(d.campaign_name)} · ${esc(d.game_name)}</div></div></div>
+      <div class="bigbar"><b id="nb"></b><span id="nbp"></span></div>
+      <div class="nmeta"><span id="nmin"></span><span class="countdown">Time remaining <b id="ncd"></b></span></div>
+      <div class="nfoot">
+        ${d.drops_left ? `<span class="tag ok">${d.drops_left} drop${d.drops_left === 1 ? "" : "s"} left in campaign · ~${hm(d.campaign_minutes_left)}</span>` : ""}
+        ${d.ends_at ? `<span class="faint">Campaign ends in ${esc(until(d.ends_at))}</span>` : ""}
+      </div>`;
+    tickNow();
+  }
+  // channel
+  const c = NOW.channel || (mu.state === "watching" ? { login: mu.channel, name: mu.channel, game: mu.game, muted: true } : null);
+  cbox.innerHTML = `<h2>Watching${NOW.channel_count ? `<span class="right faint">${NOW.channel_count} live channels</span>` : ""}</h2>` + (c ? `
+    <div class="chan">${c.logo ? `<img src="${esc(c.logo)}" alt="" onerror="this.style.visibility='hidden'">` : '<span class="ph"></span>'}
+      <div style="min-width:0"><div class="nm">${esc(c.name || c.login)}</div>
+        <div class="row" style="gap:6px; margin-top:3px"><span class="tag live">Live</span>${c.drops_enabled !== false ? '<span class="tag ok">Drops</span>' : ""}${c.muted ? '<span class="tag mode">Muted mode</span>' : ""}</div></div></div>
+    <div class="nmeta" style="margin-top:14px"><span>${c.viewers != null ? `<b style="color:var(--text)">${Number(c.viewers).toLocaleString()}</b> viewers` : esc(c.game || "")}</span>
+      <a href="https://www.twitch.tv/${esc(c.login)}" target="_blank">Open on Twitch ↗</a></div>`
+    : `<div class="nidle">Not watching a channel.</div>`);
+  // points
+  const pts = NOW.points || [], curLogin = c && c.login ? c.login.toLowerCase() : "";
+  pbox.innerHTML = `<h2>Channel points</h2>` + (pts.length ? `<div class="plist">${pts.map(p => `<div class="${p.login === curLogin ? "cur" : ""}">
+      <a href="https://www.twitch.tv/${esc(p.login)}" target="_blank">${esc(p.login)}</a><b>${Number(p.balance).toLocaleString()} pts</b></div>`).join("")}</div>`
+    : `<div class="nidle">Points you earn while watching show up here.</div>`);
+}
+function tickNow() {
+  const d = NOW && NOW.drop; if (!d || !$("#ncd")) return;
+  const left = Math.max(0, (d.remaining_seconds || 0) - (Date.now() - nowAt) / 1000);
+  const total = (d.required_minutes || 0) * 60;
+  const done = total ? Math.min(total, Math.max(d.current_minutes * 60, total - left)) : 0;
+  const pct = total ? Math.min(100, done / total * 100) : 0;
+  $("#ncd").textContent = mmss(left);
+  $("#nb").style.width = pct.toFixed(2) + "%"; $("#nbp").textContent = Math.floor(pct) + "%";
+  $("#nmin").textContent = `${Math.floor(done / 60)} / ${d.required_minutes} minutes`;
+}
+setInterval(tickNow, 1000);
+
+function waitForRestart() {
+  const startVersion = S && S.version; let seenDown = false, tries = 0;
+  const t = setInterval(async () => {
+    tries++;
+    try { const r = await fetch("/api/state"); if (!r.ok) throw 0;
+      const j = await r.json();
+      if (seenDown || j.version !== startVersion) { clearInterval(t); location.reload(); }
+    } catch { seenDown = true; }
+    if (tries > 120) clearInterval(t);
+  }, 1500);
+}
+
+async function refresh() {
+  try { S = await api("/api/state"); S._at = Date.now(); render(); }
+  catch (e) { dot("#c-steam", "bad", "Loot Radar not running"); }
+}
+
+/* ---------------- events */
+document.addEventListener("click", async e => {
+  const mv = e.target.closest("[data-move]");
+  if (mv) { if (!mv.disabled) moveGame(mv.closest(".game").dataset.key, Number(mv.dataset.move)); return; }
+  const row = e.target.closest(".grow");
+  if (row && !e.target.closest("a")) {
+    const name = row.parentElement.dataset.game;
+    OPEN.has(name) ? OPEN.delete(name) : OPEN.add(name); store("lr-open", [...OPEN]);
+    row.parentElement.classList.toggle("open", OPEN.has(name));
+    $("#btn-expand").textContent = $$(".game").every(g => g.classList.contains("open")) ? "Collapse all" : "Expand all";
+    runSig = ""; return;
+  }
+  const b = e.target.closest("button"); if (!b) return;
+  try {
+    if (b.closest(".seg[data-src=all]")) {
+      const tr = b.closest("tr"), mode = b.dataset.m, name = tr.dataset.game;
+      if (tr.dataset.appid && !tr.dataset.appid.startsWith("tw:")) await api(`/api/games/${encodeURIComponent(tr.dataset.appid)}`, { mode });
+      else await api("/api/twitch-game", { name, mode, box_art: tr.dataset.art });
+      const x = ALL.find(g => g.game_name === name); if (x) x.mode = mode;
+      allSig = ""; renderAllDrops(); gamesSig = ""; toast(`${name}: ${MODE_LABEL[mode]}`, "ok"); setTimeout(loadAllDrops, 1500);
+    } else if (b.closest(".seg")) {
+      const appid = b.closest("tr").dataset.appid, mode = b.dataset.m;
+      await api(`/api/games/${encodeURIComponent(appid)}`, { mode });
+      const g = S.games.find(x => x.appid === appid); if (g) g.mode = mode; gamesSig = ""; renderGames();
+      toast(`${g ? g.name : "Game"}: ${MODE_LABEL[mode]}`, "ok");
+    } else if (b.dataset.f) {
+      filter = b.dataset.f; $$("[data-f]").forEach(p => p.classList.toggle("on", p === b)); gamesSig = ""; renderGames(); return;
+    } else if (b.dataset.df) {
+      dfilter = b.dataset.df; $$("[data-df]").forEach(p => p.classList.toggle("on", p === b)); renderAllDrops(); return;
+    } else if (b.dataset.rf) {
+      rfilter = b.dataset.rf; $$("[data-rf]").forEach(p => p.classList.toggle("on", p === b)); runSig = ""; renderRunning(); return;
+    } else if (b.id === "btn-expand") {
+      const names = $$(".game").map(g => g.dataset.game), allOpen = names.every(n => OPEN.has(n));
+      names.forEach(n => allOpen ? OPEN.delete(n) : OPEN.add(n)); store("lr-open", [...OPEN]); runSig = ""; renderRunning(); return;
+    } else if (b.dataset.watch) {
+      await api("/api/muted/watch", { game_name: b.dataset.watch }); toast("Opening a muted stream for " + b.dataset.watch + "…", "ok");
+    } else if (b.dataset.act === "muted-stop") { await api("/api/muted/stop", {}); toast("Muted mode stopped.");
+    } else if (b.dataset.act === "muted-resume") { await api("/api/muted/resume", {}); toast("Resuming muted mode…");
+    } else if (b.dataset.act === "miner-install") {
+      await api("/api/miner/install", {}); toast("Downloading the drop miner…", "ok");
+    } else if (b.dataset.act === "miner-start") { await api("/api/miner/start", {}); toast("Starting the miner…", "ok");
+    } else if (b.dataset.act === "miner-stop") { await api("/api/miner/stop", {}); toast("Miner stopped.");
+    } else if (b.dataset.act === "miner-restart") { await api("/api/miner/stop", {}); await api("/api/miner/start", {}); toast("Miner restarted.", "ok");
+    } else if (b.id === "btn-upd-check") { await api("/api/updates/check", {}); toast("Checking GitHub for updates…"); setTimeout(refresh, 5000);
+    } else if (b.dataset.act === "lr-update") {
+      await api("/api/updates/apply", {}); toast("Updating Loot Radar — it restarts by itself in a moment.", "ok"); waitForRestart();
+    } else if (b.id === "btn-clear-all") {
+      const r = await api("/api/completed/clear", {}); toast(`Cleared ${r.cleared} completed drop${r.cleared === 1 ? "" : "s"}.`, "ok");
+    } else if (b.id === "btn-clear-old") {
+      const r = await api("/api/completed/clear", { older_than_hours: 24 }); toast(r.cleared ? `Cleared ${r.cleared} older drop${r.cleared === 1 ? "" : "s"}.` : "Nothing older than a day.", "ok");
+    } else if (b.id === "btn-sort-ending") {
+      const r = await api("/api/priority", { sort: "ending" }); S.settings.priority = r.priority; runSig = ""; renderRunning(); toast("Sorted by ending soonest.", "ok");
+    } else if (b.id === "btn-check") { await api("/api/check", {}); toast("Checking drops and news now…"); setTimeout(refresh, 4000);
+    } else if (b.id === "btn-load-drops") { await loadAllDrops(); toast("Twitch drops refreshed.", "ok");
+    } else if (b.id === "btn-add-tw") {
+      const name = $("#add-name").value.trim(); if (!name) throw new Error("Type the game's name exactly as Twitch shows it.");
+      await api("/api/twitch-game", { name, mode: "miner" }); $("#add-name").value = ""; toast(`${name} added (Auto-mine).`, "ok"); gamesSig = ""; loadAllDrops();
+    } else if (b.id === "btn-scan-pc") {
+      b.disabled = true; b.textContent = "Scanning…";
+      try { const r = await api("/api/library/scan", {}); const parts = Object.entries(r.by_source || {}).map(([k, n]) => `${STORE[k] || k} ${n}`);
+            toast(r.total ? `Found ${r.total} games: ${parts.join(", ")}.` : "No games from other launchers found.", "ok"); gamesSig = ""; allSig = ""; loadAllDrops(); }
+      finally { b.disabled = false; b.textContent = "Scan my PC"; }
+    } else if (b.id === "btn-refresh-lib") { const r = await api("/api/library/refresh", {}); toast(`Loaded ${r.count} games from Steam.`, "ok"); gamesSig = "";
+    } else if (b.id === "btn-save-steam") {
+      b.disabled = true; b.textContent = "Loading your games…";
+      try { await api("/api/settings", { steam_api_key: $("#f-key").value, steam_profile_input: $("#f-profile").value });
+            await api("/api/library/refresh", {}); toast("Steam connected — your games are in Library.", "ok"); gamesSig = ""; }
+      finally { b.disabled = false; b.textContent = "Connect & load games"; }
+    } else if (b.id === "btn-save-discord") { await api("/api/settings", { discord_webhook: $("#f-hook").value, sync_miner_webhook: $("#s-sync-hook").checked }); toast("Discord saved.", "ok");
+    } else if (b.id === "btn-test-discord") { await api("/api/test-discord", { webhook: $("#f-hook").value }); toast("Test message sent — check your Discord channel.", "ok");
+    } else if (b.id === "btn-miner-login") { await api("/api/miner/login", {}); toast("A Twitch sign-in window is opening — sign in there.", "ok");
+    } else if (b.id === "btn-test-miner") { const r = await api("/api/test-miner", {}); toast(`Miner connected — it can see ${r.campaigns} drop campaigns.`, "ok"); api("/api/check", {});
+    } else if (b.id === "btn-save-settings") {
+      await api("/api/settings", { news_mode: $("#s-news").value, news_check_hours: $("#s-news-hours").value, miner_url: $("#s-miner").value,
+        miner_memory_limit_mb: $("#s-memlimit").value, miner_password: $("#s-miner-pw").value, sync_miner_webhook: $("#s-sync-hook").checked,
+        auto_start_miner: $("#s-auto-start").checked, auto_update_miner: $("#s-auto-update").checked });
+      toast("Preferences saved.", "ok");
+    } else return;
+    refresh();
+  } catch (err) { toast(err.message, "bad"); }
+});
+
+document.addEventListener("change", async e => {
+  if (e.target.id === "s-auto-sort") {
+    try { await api("/api/settings", { priority_auto_sort: e.target.checked });
+          if (e.target.checked) { const r = await api("/api/priority", { sort: "ending" }); S.settings.priority = r.priority; await api("/api/settings", { priority_auto_sort: true }); }
+          S.settings.priority_auto_sort = e.target.checked; runSig = ""; renderRunning();
+          toast(e.target.checked ? "Always sorted by ending soonest." : "Your own order is kept.", "ok"); }
+    catch (err) { toast(err.message, "bad"); }
+    return;
+  }
+  if (["s-auto-start", "s-auto-update", "s-lib-alerts"].includes(e.target.id)) {
+    try { await api("/api/settings", { auto_start_miner: $("#s-auto-start").checked, auto_update_miner: $("#s-auto-update").checked, alert_library_drops: $("#s-lib-alerts").checked }); toast("Saved.", "ok"); }
+    catch (err) { toast(err.message, "bad"); }
+    return;
+  }
+  if (!e.target.classList.contains("tw")) return;
+  const appid = e.target.closest("tr").dataset.appid;
+  try { await api(`/api/games/${encodeURIComponent(appid)}`, { twitch_name: e.target.value }); toast("Twitch name saved.", "ok"); } catch (err) { toast(err.message, "bad"); }
+  e.target.blur(); gamesSig = ""; refresh();
+});
+$("#q").addEventListener("input", () => { gamesSig = ""; renderGames(); });
+$("#dq").addEventListener("input", renderAllDrops);
+$("#add-name").addEventListener("keydown", e => { if (e.key === "Enter") $("#btn-add-tw").click(); });
+
+route();
+refresh(); setInterval(refresh, 8000);
+loadNow(); setInterval(loadNow, 5000);
+window.addEventListener("hashchange", () => setTimeout(loadNow, 50));
+document.addEventListener("visibilitychange", loadNow);
+setInterval(() => { if (S && (["downloading", "installing"].includes((S.miner_job || {}).state) || (S.update_job || {}).state === "working")) refresh(); }, 1500);
+loadAllDrops(); setInterval(loadAllDrops, 5 * 60 * 1000);
+</script>
+</body>
+</html>

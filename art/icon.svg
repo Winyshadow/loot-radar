@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="70%">
+      <stop offset="0" stop-color="#2a1d4a"/>
+      <stop offset="0.65" stop-color="#151122"/>
+      <stop offset="1" stop-color="#0b0a12"/>
+    </radialGradient>
+    <linearGradient id="sweep" x1="256" y1="160" x2="420" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9b6bff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#9b6bff" stop-opacity="0.8"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ffcf5a" stop-opacity="0.75"/>
+      <stop offset="0.5" stop-color="#ffb02e" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#ffb02e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gemTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff1b8"/>
+      <stop offset="1" stop-color="#ffc83d"/>
+    </linearGradient>
+    <linearGradient id="gemBot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb21f"/>
+      <stop offset="1" stop-color="#d9750a"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- radar rings and crosshair -->
+  <g fill="none" stroke="#9b6bff">
+    <circle cx="256" cy="256" r="206" stroke-width="16" stroke-opacity="0.9"/>
+    <circle cx="256" cy="256" r="136" stroke-width="9" stroke-opacity="0.5"/>
+    <circle cx="256" cy="256" r="70" stroke-width="9" stroke-opacity="0.45"/>
+    <path d="M256 56V456M56 256H456" stroke-width="5" stroke-opacity="0.25"/>
+  </g>
+
+  <!-- sweep -->
+  <path d="M256 256 L256 56 A200 200 0 0 1 429.2 156 Z" fill="url(#sweep)"/>
+  <line x1="256" y1="256" x2="429.2" y2="156" stroke="#e6dbff" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- faint old blips -->
+  <circle cx="168" cy="338" r="13" fill="#9b6bff" fill-opacity="0.55"/>
+  <circle cx="330" cy="352" r="9" fill="#9b6bff" fill-opacity="0.35"/>
+
+  <!-- loot gem blip -->
+  <g transform="translate(338 162) scale(1.5) translate(-338 -162)">
+  <circle cx="338" cy="168" r="78" fill="url(#glow)"/>
+  <g stroke="#7a3e00" stroke-width="3" stroke-linejoin="round">
+    <polygon points="296,150 316,126 360,126 380,150" fill="url(#gemTop)"/>
+    <polygon points="296,150 338,206 380,150" fill="url(#gemBot)"/>
+  </g>
+  <g stroke="#b86a08" stroke-width="2.5" stroke-linejoin="round" fill="none" stroke-opacity="0.8">
+    <path d="M316 126 L326 150 L338 126 L350 150 L360 126"/>
+    <path d="M326 150 L338 206 L350 150"/>
+  </g>
+  <path d="M318 132 L330 132" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-opacity="0.9"/>
+
+  </g>
+  <!-- centre -->
+  <circle cx="256" cy="256" r="20" fill="#e6dbff"/>
+</svg>
