@@ -19,6 +19,7 @@ Loot Radar reads your Steam library and the games installed from your other laun
 | Muted mode | Opens a real live stream, muted and at the lowest quality, and switches channel when it ends |
 | Overview | Totals, the drop being mined right now with a live countdown, the channel and your channel points, collapsible running drops per game, and a completed-drops list you can clear |
 | System tray | Runs quietly next to the clock: double-click the icon to open the dashboard, right-click to restart or quit |
+| Start with Windows | Optional tick box in Settings → Preferences: Loot Radar starts in the tray when you sign in |
 | Updates | Checks GitHub every 6 hours for new versions of Loot Radar and the miner; one click to update |
 | Memory guard | Restarts the miner if it ever uses too much memory |
 

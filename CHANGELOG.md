@@ -6,6 +6,12 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.1.0 (2026-11-09)
+
+- New: **Start Loot Radar when I sign in to Windows** tick box (Settings → Preferences). Loot Radar then starts quietly in the system tray when you sign in, without opening the dashboard. It's saved as soon as you tick it, needs no admin rights, and shows up in Windows' Startup apps list as "Loot Radar".
+- If you switch it off in Windows' Startup apps list, the tick box shows that. Ticking it again in Loot Radar switches it back on.
+- If you move the Loot Radar folder, the startup entry follows it the next time Loot Radar starts.
+
 ## 1.0.1 (2026-11-09)
 
 - Fixed first-time setup failing on PCs that only have Python 3.15 ("Failed building wheel for aiohttp" / "Microsoft Visual C++ 14.0 or greater is required"). START.bat now uses Python 3.10 to 3.14 and, if none is installed, offers to install Python 3.12 next to your other Python.

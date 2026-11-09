@@ -15,6 +15,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
 
+import autostart
 import checks
 import memguard
 import minerctl
@@ -58,6 +59,7 @@ def api_state():
     games = [{"appid": appid, **g} for appid, g in (cfg.get("games") or {}).items()]
     games.sort(key=lambda g: -(g.get("playtime_min") or 0))
     settings = {k: v for k, v in cfg.items() if k != "games"}
+    settings["start_with_windows"] = autostart.enabled()  # lives in Windows, not in config.json
     return jsonify({
         "settings": settings,
         "games": games,
@@ -156,6 +158,15 @@ def api_now():
 @app.post("/api/settings")
 def api_settings():
     data = request.get_json(force=True) or {}
+    if "start_with_windows" in data:
+        if not autostart.supported():
+            return _err("Starting with Windows only works on Windows.")
+        try:
+            autostart.set_enabled(bool(data["start_with_windows"]))
+        except OSError as exc:
+            return _err(f"Windows didn't allow changing the startup setting: {exc}")
+        store.log("Loot Radar will now start when you sign in to Windows." if data["start_with_windows"]
+                  else "Loot Radar will no longer start with Windows.")
     cfg = store.load_config()
     for key in ("steam_api_key", "discord_webhook", "miner_url", "miner_password", "news_mode"):
         if key in data:
@@ -549,6 +560,7 @@ def main():
         watcher = MutedWatcher(store.DATA_DIR / "browser-profile")
 
     store.log(f"Loot Radar {updates.current_version()} started.")
+    autostart.refresh_path()
     _bg(minerctl.autostart)
     threading.Thread(target=scheduler, name="scheduler", daemon=True).start()
     if not args.no_browser:

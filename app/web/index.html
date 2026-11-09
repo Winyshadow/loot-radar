@@ -574,6 +574,9 @@
     <div class="panel">
       <div class="phead"><h2>Preferences</h2><div class="right"><button class="lime sm" id="btn-save-settings">Save preferences</button></div></div>
       <div class="grid2">
+        <div style="grid-column:1/-1; display:grid; gap:6px">
+          <label class="check-line"><input type="checkbox" id="s-win-start"> Start Loot Radar when I sign in to Windows</label>
+          <div class="faint" style="font-size:12px">Starts quietly in the system tray, without opening this page. Saved as soon as you tick it.</div></div>
         <div class="field"><label>Steam news alerts</label>
           <select id="s-news">
             <option value="announcements">All official announcements (patch notes, events, leagues)</option>
@@ -974,6 +977,7 @@ function fillForms() {
   $("#s-memlimit").value = st.miner_memory_limit_mb ?? 2048;
   $("#s-auto-start").checked = st.auto_start_miner !== false; $("#s-auto-update").checked = !!st.auto_update_miner;
   $("#s-lib-alerts").checked = st.alert_library_drops !== false;
+  $("#s-win-start").checked = !!st.start_with_windows;
   if (!(st.steam_api_key && st.steam_id)) $("#help-steam").open = true;
   if (!st.discord_webhook) $("#help-discord").open = true;
 }
@@ -1165,6 +1169,13 @@ document.addEventListener("change", async e => {
           S.settings.priority_auto_sort = e.target.checked; runSig = ""; renderRunning();
           toast(e.target.checked ? "Always sorted by ending soonest." : "Your own order is kept.", "ok"); }
     catch (err) { toast(err.message, "bad"); }
+    return;
+  }
+  if (e.target.id === "s-win-start") {
+    const on = e.target.checked;
+    try { await api("/api/settings", { start_with_windows: on });
+          toast(on ? "Loot Radar will start when you sign in to Windows." : "Loot Radar won't start with Windows anymore.", "ok"); }
+    catch (err) { e.target.checked = !on; toast(err.message, "bad"); }
     return;
   }
   if (["s-auto-start", "s-auto-update", "s-lib-alerts"].includes(e.target.id)) {
