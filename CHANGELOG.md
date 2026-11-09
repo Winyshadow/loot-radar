@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.0.1 (2026-11-09)
+
+- Fixed first-time setup failing on PCs that only have Python 3.15 ("Failed building wheel for aiohttp" / "Microsoft Visual C++ 14.0 or greater is required"). START.bat now uses Python 3.10 to 3.14 and, if none is installed, offers to install Python 3.12 next to your other Python.
+- If an earlier setup was built with a Python that's too new, START.bat rebuilds it automatically.
+
 ## 1.0.0 (2026-11-08)
 
 First public release.
