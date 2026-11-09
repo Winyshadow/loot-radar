@@ -145,7 +145,7 @@ def api_now():
         camps = store.load_state().get("campaigns") or []
         camp = next((c for c in camps if c.get("id") == d.get("campaign_id")), None)
         if camp:
-            pending = [x for x in camp["drops"] if not x.get("claimed")]
+            pending = [x for x in camp["drops"] if not x.get("claimed") and not checks.is_sub_drop(x)]
             d["image"] = next((x.get("image") for x in camp["drops"] if x.get("id") == d.get("drop_id")), "")
             d["box_art"] = camp.get("box_art")
             d["drops_left"] = len(pending)
@@ -274,6 +274,7 @@ def api_twitch_drops():
             "starts_at": c.get("starts_at"), "ends_at": c.get("ends_at"), "linked": c.get("linked"),
             "link_url": c.get("link_url"), "claimed_drops": c.get("claimed_drops"),
             "total_drops": c.get("total_drops"),
+            "sub_only": bool(c.get("drops")) and all(checks.is_sub_drop(d) for d in c["drops"]),
             "rewards": [b.get("name") for d in c.get("drops") or [] for b in d.get("benefits") or [] if b.get("name")],
         })
     out = []

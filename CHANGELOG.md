@@ -6,6 +6,13 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.2.0 (2026-11-09)
+
+- Drops that need a paid sub to a streamer no longer hold up the mining queue. Watching never earns them, so they're left out of the mining order, "Sort by ending soonest", muted mode and the miner's game list. A game whose only live drops need a sub comes off the miner's list until it has a drop you can earn by watching.
+- New **Sub-only drops** panel on the Overview, under Running drops. It lists every sub drop for your games, how many subs it needs and when it ends, so you can still see them.
+- Running drops now shows only drops you can earn by watching. A campaign that mixes both (like Legion TD 2) shows its watch drops there and notes how many sub drops it has.
+- Browse drops marks campaigns where every drop needs a sub with a "Sub only" tag.
+
 ## 1.1.0 (2026-11-09)
 
 - New: **Start Loot Radar when I sign in to Windows** tick box (Settings → Preferences). Loot Radar then starts quietly in the system tray when you sign in, without opening the dashboard. It's saved as soon as you tick it, needs no admin rights, and shows up in Windows' Startup apps list as "Loot Radar".

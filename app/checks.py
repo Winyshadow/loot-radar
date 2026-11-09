@@ -108,6 +108,22 @@ def fully_claimed(c: dict) -> bool:
     return bool(total) and (c.get("claimed_drops") or 0) >= total
 
 
+def is_sub_drop(d: dict) -> bool:
+    """A drop you only get by subscribing (paying) to a streamer. Watching never earns it."""
+    return bool(d.get("subs") or d.get("required_subs"))
+
+
+def has_watch_work(c: dict) -> bool:
+    """True if this campaign still has a drop you can earn just by watching. Sub-only drops
+    don't count, so they never hold up the mining order or muted mode."""
+    for d in c.get("drops") or []:
+        claimed = d.get("claimed", d.get("is_claimed"))
+        required = d.get("required", d.get("required_minutes")) or 0
+        if not claimed and not is_sub_drop(d) and required > 0:
+            return True
+    return False
+
+
 # ------------------------------------------------------------------ Steam library
 def refresh_library() -> int:
     cfg = store.load_config()
@@ -220,8 +236,8 @@ _FAR = "9999"
 
 def _end_key(appid: str, games: dict, relevant: list[dict]) -> tuple:
     """Sort key for 'ending soonest': live campaigns by end time, then upcoming, then games
-    with no campaign (by hours played)."""
-    camps = [c for c in relevant if c.get("appid") == appid and not fully_claimed(c)]
+    with no campaign (by hours played). Campaigns with only sub drops left count as none."""
+    camps = [c for c in relevant if c.get("appid") == appid and has_watch_work(c)]
     live = [c.get("ends_at") or _FAR for c in camps if c.get("active")]
     if live:
         return (0, min(live), 0)
@@ -284,14 +300,23 @@ def set_priority(order: list[str]) -> list[str]:
 def sync_miner(miner: Miner, cfg: dict, campaigns: list[dict] | None) -> None:
     games = cfg.get("games") or {}
     twitch_names = {}
+    live_work, sub_only_live = set(), set()
     for c in campaigns or []:
         m = match_game(games, c.get("game_name", ""))
         if m:
             twitch_names[m[0]] = c["game_name"]
+            if c.get("active") and not c.get("expired"):
+                if has_watch_work(c):
+                    live_work.add(m[0])
+                elif any(is_sub_drop(d) and not d.get("is_claimed") for d in c.get("drops") or []):
+                    sub_only_live.add(m[0])
+    # A game whose only live drops need a paid sub stays off the miner's list (until a drop
+    # you can earn by watching shows up), so the miner never sits on it.
+    skip = sub_only_live - live_work
     order = cfg.get("priority") or []
     rank = {k: i for i, k in enumerate(order)}
     mined = sorted(
-        ((appid, g) for appid, g in games.items() if g.get("mode") == "miner"),
+        ((appid, g) for appid, g in games.items() if g.get("mode") == "miner" and appid not in skip),
         key=lambda x: (rank.get(x[0], 10**6), -(x[1].get("playtime_min") or 0)),
     )
     wanted = []
@@ -439,6 +464,7 @@ def _run_cycle(watcher, force_news: bool) -> None:
             "link_url": c.get("link_url"), "claimed_drops": c.get("claimed_drops"),
             "total_drops": c.get("total_drops"), "watched_minutes": sum(p[0] for p in progress),
             "box_art": c.get("game_box_art_url") or "", "subs_only": bool(c.get("subscription_required")),
+            "campaign_url": c.get("campaign_url") or "",
             "drops": [
                 {"id": d.get("id") or f"{c.get('id')}:{d.get('name')}",
                  "name": ", ".join(b.get("name", "") for b in d.get("benefits") or []) or d.get("name"),
@@ -475,7 +501,7 @@ def _run_cycle(watcher, force_news: bool) -> None:
         rank = {k: i for i, k in enumerate(store.load_config().get("priority") or [])}
         candidates = sorted(
             (c for c in relevant
-             if c["mode"] == "muted" and c["active"] and c["linked"] and not fully_claimed(c)),
+             if c["mode"] == "muted" and c["active"] and c["linked"] and has_watch_work(c)),
             key=lambda c: (rank.get(c.get("appid"), 10**6), c.get("ends_at") or ""),
         )
         muted_target = candidates[0]["game_name"] if candidates else None

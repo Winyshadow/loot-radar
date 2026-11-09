@@ -428,6 +428,14 @@
       <div class="waiting" id="waiting" style="display:none"></div>
     </div>
 
+    <div class="panel" id="subs-panel" style="display:none">
+      <div class="phead">
+        <h2>Sub-only drops</h2><span class="muted" id="subs-sub"></span>
+        <div class="right"><span class="faint" style="font-size:12px">Need a paid sub to a streamer, so they're never mined or queued.</span></div>
+      </div>
+      <div id="subs"></div>
+    </div>
+
     <div class="panel">
       <div class="phead">
         <h2>Completed drops</h2><span class="muted" id="done-sub"></span>
@@ -682,10 +690,16 @@ function render() {
   } else mb.style.display = "none";
 
   fillForms();
-  renderStats(); renderRunning(); renderCompleted(); renderMuted(); renderGames(); renderLog();
+  renderStats(); renderRunning(); renderSubs(); renderCompleted(); renderMuted(); renderGames(); renderLog();
 }
 
-function activeCamps() { return S.campaigns.filter(c => !(c.total_drops && c.claimed_drops >= c.total_drops) && c.drops.some(d => !d.claimed)); }
+// Sub drops need a paid subscription, so watching never earns them: they live in their own panel
+// and never count toward the mining queue.
+const isSubDrop = d => (d.subs || 0) > 0;
+function activeCamps() {
+  return S.campaigns.map(c => ({ ...c, subDrops: c.drops.filter(d => isSubDrop(d) && !d.claimed).length, drops: c.drops.filter(d => !isSubDrop(d)) }))
+    .filter(c => c.drops.some(d => !d.claimed && d.required > 0));
+}
 
 function renderStats() {
   const camps = activeCamps();
@@ -752,12 +766,12 @@ function renderRunning() {
       const nextIdx = pending.findIndex(d => d.current < d.required);
       return `<div class="camp"><div class="ch"><b>${esc(c.name)}</b>
           ${c.active ? '<span class="tag live">Live</span>' : `<span class="tag soon">Starts ${esc(when(c.starts_at))}</span>`}
-          <span class="faint">ends ${esc(when(c.ends_at))} · ${c.claimed_drops || 0}/${c.total_drops || c.drops.length} claimed${c.subs_only ? " · needs a sub" : ""}</span>
+          <span class="faint">ends ${esc(when(c.ends_at))} · ${c.drops.filter(d => d.claimed).length}/${c.drops.length} claimed${c.subDrops ? ` · ${c.subDrops} sub drop${c.subDrops === 1 ? "" : "s"} (see Sub-only drops)` : ""}</span>
           ${c.active && c.linked ? `<button class="sm" style="margin-left:auto" data-watch="${esc(c.game_name)}">Watch muted</button>` : ""}</div>
         ${pending.map((d, k) => {
           const p = d.required ? Math.min(100, Math.round(d.current / d.required * 100)) : 0;
           return `<div class="drop ${k === nextIdx ? "next" : ""}">${img(d.image, "art sq")}
-            <div><b>${esc(d.name)}</b><div class="faint">${k === nextIdx ? "Up next" : "Queued"}${d.subs ? " · needs a sub" : ""}</div></div>
+            <div><b>${esc(d.name)}</b><div class="faint">${k === nextIdx ? "Up next" : "Queued"}</div></div>
             <div class="bar hide-sm"><b style="width:${p}%"></b></div>
             <div class="faint hide-sm" style="text-align:right">${hm(d.current)} / ${hm(d.required)}</div></div>`;
         }).join("")}</div>`;
@@ -817,6 +831,23 @@ document.addEventListener("drop", e => {
   if (at >= 0 && g.dataset.key !== DRAG) { o.splice(below ? at + 1 : at, 0, DRAG); applyRunOrder(o); }
 });
 document.addEventListener("dragend", () => { DRAG = null; $$(".game").forEach(x => x.classList.remove("dragging", "drop-above", "drop-below")); });
+
+let subsSig = "";
+function renderSubs() {
+  const rows = S.campaigns.flatMap(c => c.drops.filter(d => isSubDrop(d) && !d.claimed).map(d => ({ d, c })))
+    .sort((a, b) => String(a.c.ends_at).localeCompare(String(b.c.ends_at)));
+  $("#subs-panel").style.display = rows.length ? "" : "none";
+  $("#subs-sub").textContent = rows.length ? `${rows.length} drop${rows.length === 1 ? "" : "s"}` : "";
+  const sig = JSON.stringify(rows.map(r => [r.d.id, r.c.active])) + Math.floor(nowS() / 600);
+  if (sig === subsSig) return; subsSig = sig;
+  $("#subs").innerHTML = `<div class="camp" style="margin:0 18px 16px">${rows.map(({ d, c }) => `
+    <div class="drop">${img(d.image || boxArt(c.box_art, 92, 92), "art sq", d.name)}
+      <div style="min-width:0"><b>${esc(d.name)}</b><div class="faint">${esc(c.game_name)} · ${esc(c.name)}</div></div>
+      <div class="hide-sm"><span class="tag mode">Needs ${d.subs} sub${d.subs === 1 ? "" : "s"}</span>
+        ${c.active ? "" : `<span class="tag soon">Starts ${esc(when(c.starts_at))}</span>`}</div>
+      <div class="faint hide-sm" style="text-align:right">${c.campaign_url ? `<a href="${esc(c.campaign_url)}" target="_blank">ends ${esc(until(c.ends_at))}</a>` : `ends ${esc(until(c.ends_at))}`}</div>
+    </div>`).join("")}</div>`;
+}
 
 function renderCompleted() {
   const done = S.completed || [];
@@ -901,6 +932,7 @@ function renderAllDrops() {
       const link = (x.campaigns.find(c => !c.linked) || {}).link_url || "https://www.twitch.tv/drops/campaigns";
       const camps = x.campaigns.map(c => `<div style="margin:4px 0"><b>${esc(c.name)}</b>
           ${c.active ? '<span class="tag live">Live</span>' : `<span class="tag soon">Starts ${esc(when(c.starts_at))}</span>`}
+          ${c.sub_only ? '<span class="tag mode" title="Every drop here needs a paid sub to a streamer; Loot Radar never mines these">Sub only</span>' : ""}
           <span class="faint">ends ${esc(when(c.ends_at))}${c.total_drops ? ` · ${c.claimed_drops || 0}/${c.total_drops} claimed` : ""}</span>
           <div class="faint">${c.rewards.slice(0, 6).map(esc).join(" · ")}${c.rewards.length > 6 ? ` · +${c.rewards.length - 6} more` : ""}</div></div>`).join("");
       return `<tr data-appid="${esc(x.appid || "")}" data-game="${esc(x.game_name)}" data-art="${esc(x.box_art)}">
