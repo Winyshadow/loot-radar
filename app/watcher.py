@@ -53,6 +53,12 @@ def slugify(name: str) -> str:
 
 def drops_channels_gql(game_name: str, limit: int = 30) -> list[str]:
     """Live channels with drops enabled for a game, most viewers first."""
+    return [s["login"] for s in drops_streams(game_name, limit)]
+
+
+def drops_streams(game_name: str, limit: int = 30) -> list[dict]:
+    """Live drops-enabled streams for a game, most viewers first, with the details the
+    dashboard shows (name, viewers, title, picture)."""
     body = {
         "operationName": "DirectoryPage_Game",
         "variables": {
@@ -85,10 +91,15 @@ def drops_channels_gql(game_name: str, limit: int = 30) -> list[str]:
     if not game:
         return []
     out = []
-    for edge in game["streams"]["edges"]:
-        b = (edge.get("node") or {}).get("broadcaster")
+    for edge in (game.get("streams") or {}).get("edges") or []:
+        node = edge.get("node") or {}
+        b = node.get("broadcaster")
         if b and b.get("login"):
-            out.append(b["login"])
+            out.append({
+                "login": b["login"], "name": b.get("displayName") or b["login"],
+                "avatar": b.get("profileImageURL") or "", "partner": bool((b.get("roles") or {}).get("isPartner")),
+                "viewers": node.get("viewersCount") or 0, "title": node.get("title") or "",
+            })
     return out
 
 

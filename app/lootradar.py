@@ -252,6 +252,25 @@ def api_game(appid):
     return jsonify({"ok": True})
 
 
+_streams_cache: dict[str, tuple[float, list]] = {}
+
+
+@app.get("/api/streamers")
+def api_streamers():
+    """Live drops-enabled streamers for a game (for sub-only drops: pick who to sub to)."""
+    game = (request.args.get("game") or "").strip()
+    if not game:
+        return _err("Which game?")
+    from watcher import drops_streams
+    cached = _streams_cache.get(game.lower())
+    if not cached or time.time() - cached[0] > 180:
+        try:
+            cached = _streams_cache[game.lower()] = (time.time(), drops_streams(game, 30))
+        except Exception as exc:  # network trouble or Twitch changed something
+            return _err(f"Couldn't load streamers from Twitch: {exc}", 502)
+    return jsonify({"ok": True, "streamers": cached[1]})
+
+
 @app.get("/api/twitch-drops")
 def api_twitch_drops():
     """Every campaign the miner can see, grouped by Twitch game, with your mode for each."""

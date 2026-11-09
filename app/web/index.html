@@ -202,6 +202,16 @@
   .drop { display: grid; grid-template-columns: 46px 1fr minmax(120px, 220px) 110px; gap: 14px; align-items: center; padding: 10px 14px; }
   .drop + .drop { border-top: 1px dashed var(--line); }
   .drop.next { background: rgba(182, 240, 60, .045); }
+  .streams { padding: 4px 14px 14px 74px; border-top: 1px dashed var(--line); }
+  .streams .shead { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; padding: 8px 0; font-size: 12px; }
+  .sgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+  .scard { display: grid; grid-template-columns: 32px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: rgba(4, 20, 30, .5); border: 1px solid var(--line); }
+  .scard .av { width: 32px; height: 32px; border-radius: 50%; }
+  .scard .t { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .scard .acts { display: flex; gap: 6px; }
+  .scard .acts a { font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 99px; border: 1px solid var(--line2); color: var(--text); }
+  .scard .acts a.sub { background: rgba(169, 137, 255, .18); border-color: rgba(169, 137, 255, .4); color: var(--violet); }
+  .scard .acts a:hover { text-decoration: none; filter: brightness(1.2); }
 
   /* ---------- completed */
   .done-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; padding: 14px; }
@@ -838,15 +848,52 @@ function renderSubs() {
     .sort((a, b) => String(a.c.ends_at).localeCompare(String(b.c.ends_at)));
   $("#subs-panel").style.display = rows.length ? "" : "none";
   $("#subs-sub").textContent = rows.length ? `${rows.length} drop${rows.length === 1 ? "" : "s"}` : "";
-  const sig = JSON.stringify(rows.map(r => [r.d.id, r.c.active])) + Math.floor(nowS() / 600);
+  const sig = JSON.stringify([rows.map(r => [r.d.id, r.c.active]), [...SUBS_OPEN], STREAMS_V]) + Math.floor(nowS() / 600);
   if (sig === subsSig) return; subsSig = sig;
   $("#subs").innerHTML = `<div class="camp" style="margin:0 18px 16px">${rows.map(({ d, c }) => `
     <div class="drop">${img(d.image || boxArt(c.box_art, 92, 92), "art sq", d.name)}
       <div style="min-width:0"><b>${esc(d.name)}</b><div class="faint">${esc(c.game_name)} · ${esc(c.name)}</div></div>
-      <div class="hide-sm"><span class="tag mode">Needs ${d.subs} sub${d.subs === 1 ? "" : "s"}</span>
-        ${c.active ? "" : `<span class="tag soon">Starts ${esc(when(c.starts_at))}</span>`}</div>
-      <div class="faint hide-sm" style="text-align:right">${c.campaign_url ? `<a href="${esc(c.campaign_url)}" target="_blank">ends ${esc(until(c.ends_at))}</a>` : `ends ${esc(until(c.ends_at))}`}</div>
-    </div>`).join("")}</div>`;
+      <div class="row" style="gap:6px; flex-wrap:wrap"><span class="tag mode">Needs ${d.subs} sub${d.subs === 1 ? "" : "s"}</span>
+        ${c.active ? "" : `<span class="tag soon">Starts ${esc(when(c.starts_at))}</span>`}
+        <button class="sm ${SUBS_OPEN.has(d.id) ? "" : "ghost"}" data-streams="${esc(d.id)}" data-game-name="${esc(c.game_name)}">${SUBS_OPEN.has(d.id) ? "Hide streamers" : "Streamers"}</button></div>
+      <div class="faint hide-sm" style="text-align:right">ends ${esc(until(c.ends_at))}</div>
+    </div>
+    ${SUBS_OPEN.has(d.id) ? `<div class="streams">${streamsHTML(c)}</div>` : ""}`).join("")}</div>`;
+}
+
+// Live drops streamers per game, loaded when you open a sub drop's list (Twitch, cached 3 min server-side).
+const SUBS_OPEN = new Set(), STREAMS = {};
+let STREAMS_V = 0;
+function streamsHTML(c) {
+  const s = STREAMS[c.game_name];
+  const links = `<div class="shead faint"><span>Live channels with drops for ${esc(c.game_name)}, most viewers first. Subscribing to one should earn this drop.</span>
+    ${c.campaign_url ? `<a href="${esc(c.campaign_url)}" target="_blank">Campaign page on Twitch (lists the channels taking part)</a>` : ""}
+    <a href="https://www.twitch.tv/directory/category/${esc(slug(c.game_name))}" target="_blank">All ${esc(c.game_name)} streams</a></div>`;
+  if (!s || s.loading) return links + `<div class="faint" style="padding:6px 0">Loading streamers…</div>`;
+  if (s.error) return links + `<div class="faint" style="padding:6px 0">${esc(s.error)}</div>`;
+  if (!s.list.length) return links + `<div class="faint" style="padding:6px 0">Nobody is streaming ${esc(c.game_name)} with drops right now. Try again later or check the campaign page.</div>`;
+  const shown = s.all ? s.list : s.list.slice(0, 12);
+  const more = s.list.length > shown.length ? `<button class="sm ghost" style="margin-top:8px" data-streams-all="${esc(c.game_name)}">Show all ${s.list.length}</button>` : "";
+  return links + `<div class="sgrid">${shown.map(x => `
+    <div class="scard">${img(x.avatar, "av", x.name)}
+      <div style="min-width:0"><b>${esc(x.name)}</b> <span class="faint" style="font-size:11px">${Number(x.viewers).toLocaleString()} watching</span>
+        <div class="faint t" title="${esc(x.title)}">${esc(x.title)}</div></div>
+      <div class="acts"><a href="https://www.twitch.tv/${esc(x.login)}" target="_blank">Watch</a>
+        <a class="sub" href="https://www.twitch.tv/subs/${esc(x.login)}" target="_blank" title="Opens Twitch's subscribe page for ${esc(x.name)}">Subscribe</a></div>
+    </div>`).join("")}</div>${more}`;
+}
+function slug(name) { return String(name).toLowerCase().replace(/'/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); }
+async function toggleStreams(id, game) {
+  if (SUBS_OPEN.has(id)) { SUBS_OPEN.delete(id); subsSig = ""; renderSubs(); return; }
+  SUBS_OPEN.add(id);
+  const s = STREAMS[game];
+  if (!s || s.error || nowS() - s.at > 180) {
+    STREAMS[game] = { loading: true, list: [], at: nowS() }; STREAMS_V++; renderSubs();
+    try { const r = await api(`/api/streamers?game=${encodeURIComponent(game)}`); STREAMS[game] = { list: r.streamers, at: nowS() }; }
+    catch (e) { STREAMS[game] = { error: e.message, list: [], at: nowS() }; }
+    STREAMS_V++;
+  }
+  subsSig = ""; renderSubs();
 }
 
 function renderCompleted() {
@@ -1116,6 +1163,10 @@ async function refresh() {
 document.addEventListener("click", async e => {
   const mv = e.target.closest("[data-move]");
   if (mv) { if (!mv.disabled) moveGame(mv.closest(".game").dataset.key, Number(mv.dataset.move)); return; }
+  const st = e.target.closest("[data-streams]");
+  if (st) { toggleStreams(st.dataset.streams, st.dataset.gameName); return; }
+  const sa = e.target.closest("[data-streams-all]");
+  if (sa) { const s = STREAMS[sa.dataset.streamsAll]; if (s) { s.all = true; STREAMS_V++; subsSig = ""; renderSubs(); } return; }
   const row = e.target.closest(".grow");
   if (row && !e.target.closest("a")) {
     const name = row.parentElement.dataset.game;

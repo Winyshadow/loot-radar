@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.3.0 (2026-11-09)
+
+- New: **Streamers** button on every sub-only drop. It lists the channels streaming that game live with drops on, most viewers first, with their stream title. Each one has **Watch** and **Subscribe** links (Subscribe opens Twitch's subscribe page for that streamer), so you can pick who to sub to for the drop.
+- Shows the top 12 streamers, with "Show all" for the rest. There are also links to the drop's campaign page on Twitch (which lists the channels taking part) and to all of the game's streams.
+
 ## 1.2.0 (2026-11-09)
 
 - Drops that need a paid sub to a streamer no longer hold up the mining queue. Watching never earns them, so they're left out of the mining order, "Sort by ending soonest", muted mode and the miner's game list. A game whose only live drops need a sub comes off the miner's list until it has a drop you can earn by watching.
