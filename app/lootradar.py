@@ -52,6 +52,29 @@ def static_file(name, ext):
     return send_from_directory(HERE / "web", f"{name}.{ext}")
 
 
+_account = {"at": 0.0, "value": {"state": "unknown", "user": "", "status": ""}}
+
+
+def _miner_account() -> dict:
+    """Which Twitch account the miner is signed in to (asked at most every 15 s), so the
+    dashboard can show it without anyone opening the miner itself."""
+    if time.time() - _account["at"] < 15:
+        return _account["value"]
+    if not minerctl.running():
+        value = {"state": "stopped", "user": "", "status": ""}
+    else:
+        cfg = store.load_config()
+        try:
+            login = Miner(cfg["miner_url"], cfg.get("miner_password", "")).status().get("login") or {}
+            user, status = login.get("user_login") or "", login.get("status") or ""
+            signed_in = bool(user) and "logged in" in status.lower()
+            value = {"state": "in" if signed_in else "out", "user": user, "status": status}
+        except MinerError as exc:
+            value = {"state": "unknown", "user": "", "status": str(exc)}
+    _account.update(at=time.time(), value=value)
+    return value
+
+
 @app.get("/api/state")
 def api_state():
     cfg = store.load_config()
@@ -73,6 +96,7 @@ def api_state():
         "muted_manual": state.get("muted_manual"),
         "miner_memory": state.get("miner_memory"),
         "miner_login": getattr(watcher, "miner_login", {"state": "idle", "note": ""}),
+        "miner_account": _miner_account(),
         "last_check": state.get("last_check", 0),
         "library_updated": state.get("library_updated", 0),
         "version": updates.current_version(),

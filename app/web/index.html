@@ -548,6 +548,7 @@
             <li>Link your game accounts on <a href="https://www.twitch.tv/drops/campaigns" target="_blank">twitch.tv/drops/campaigns</a>. Drops only count for games whose account is linked.</li>
           </ol></details>
         <div class="muted" id="miner-summary">—</div>
+        <div class="muted" id="miner-account" style="display:none"></div>
         <div class="row" id="miner-actions"></div>
         <div class="faint" id="miner-job" style="display:none"></div>
         <div class="row"><button class="lime" id="btn-miner-login">Log the miner in to Twitch</button><button id="btn-test-miner">Check connection</button></div>
@@ -1022,6 +1023,18 @@ function renderMinerCard(mOk, mem, memTxt) {
   else if (S.miner_running) sum = `<span class="tag ok">Your own copy</span> <span class="faint">Install the built-in miner to get one-click updates. Your Twitch login carries over.</span>`;
   else sum = `<span class="tag warn">Not installed</span> <span class="faint">One click: Loot Radar downloads it from the miner's official GitHub.</span>`;
   $("#miner-summary").innerHTML = sum;
+  // Which Twitch account the miner uses, so nobody has to open the miner to check.
+  const acc = S.miner_account || {}, accEl = $("#miner-account"), loginBtn = $("#btn-miner-login");
+  const signedIn = acc.state === "in";
+  accEl.style.display = acc.state && acc.state !== "stopped" ? "" : "none";
+  accEl.innerHTML = signedIn
+    ? `<span class="tag live">Signed in</span> <span class="faint">Twitch account:</span> <b>${esc(acc.user)}</b>`
+    : acc.state === "out"
+      ? `<span class="tag warn">Not signed in</span> <span class="faint">Press <b>Log the miner in to Twitch</b> below.${acc.status ? " (Miner says: " + esc(acc.status) + ")" : ""}</span>`
+      : `<span class="tag soon">Twitch login unknown</span> <span class="faint">${esc(acc.status || "Checking…")}</span>`;
+  loginBtn.textContent = signedIn ? "Switch Twitch account" : "Log the miner in to Twitch";
+  loginBtn.className = signedIn ? "" : "lime";
+  const md = $("#c-miner"); md.title = (md.title ? md.title + "\n" : "") + (signedIn ? "Twitch: " + acc.user : "Twitch: not signed in");
   const acts = [];
   if (!bi) acts.push(`<button class="lime" data-act="miner-install" ${busy ? "disabled" : ""}>Install miner</button>`);
   else {

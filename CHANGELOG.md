@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.4.1 (2026-11-10)
+
+- The Drop miner card in Settings now shows whether the miner is signed in to Twitch, and with which account ("Signed in · Twitch account: yourname"), so you never need to open the miner to check. If it's not signed in, it says so and points to the login button.
+- Once you're signed in, the login button reads **Switch Twitch account**. Hovering the Miner dot at the top also shows the account.
+
 ## 1.4.0 (2026-11-10)
 
 - Fixed: a fresh setup with no games picked yet (no Steam connected, nothing added) didn't mine at all, even with the miner logged in. Until you pick games, the miner now mines any drop your linked accounts can get. As soon as you set a game to Auto-mine or Muted, it goes back to mining only the games you picked.
