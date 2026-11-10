@@ -21,6 +21,7 @@ import memguard
 import minerctl
 import updates
 import notify
+import phone
 import steam
 import store
 from miner import Miner, MinerError
@@ -38,6 +39,81 @@ def _err(msg: str, code: int = 400):
 
 def _bg(fn, *a, **kw):
     threading.Thread(target=fn, args=a, kwargs=kw, daemon=True).start()
+
+
+@app.before_request
+def _phone_gate():
+    """Requests through the phone server need the PIN cookie; PC-only things are refused."""
+    if not phone.is_phone_request(request):
+        return None
+    path = request.path
+    if not phone.settings()["enabled"]:
+        return _err("Phone access is switched off on the PC.", 403)
+    if path in phone.OPEN_PATHS:
+        return None
+    if not phone.authorized(request):
+        if path.startswith("/api/"):
+            return _err("Enter the PIN first.", 401)
+        return phone.PIN_PAGE, 200, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"}
+    if any(path == p or path.startswith(p + "/") for p in phone.PC_ONLY_PATHS):
+        return _err("That can only be done on the PC.", 403)
+    return None
+
+
+@app.post("/api/phone-login")
+def api_phone_login():
+    if not phone.is_phone_request(request):
+        return _err("Only for the phone.", 404)
+    ok, msg = phone.check_pin(request.remote_addr or "?", (request.get_json(silent=True) or {}).get("pin", ""))
+    if not ok:
+        return _err(msg, 401)
+    store.log(f"A phone signed in to Loot Radar ({request.remote_addr}).")
+    resp = jsonify({"ok": True})
+    resp.set_cookie(phone.COOKIE, phone.settings()["token"], max_age=180 * 86400, httponly=True, samesite="Lax")
+    return resp
+
+
+@app.get("/manifest.webmanifest")
+def manifest():
+    """Lets "Add to Home Screen" on a phone show Loot Radar like an app."""
+    return jsonify({
+        "name": "Loot Radar", "short_name": "Loot Radar", "start_url": "/#/overview", "display": "standalone",
+        "background_color": "#071b27", "theme_color": "#071b27",
+        "icons": [{"src": "/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}],
+    }), 200, {"Content-Type": "application/manifest+json"}
+
+
+@app.get("/api/phone")
+def api_phone():
+    """Phone access details for Settings on the PC (the gate keeps the phone itself out)."""
+    s, addrs = phone.settings(), phone.addresses()
+    return jsonify({"ok": True, "enabled": s["enabled"], "running": phone.running(), "pin": s["pin"],
+                    "port": phone.PORT, "wifi": addrs["wifi"], "tailscale": addrs["tailscale"]})
+
+
+@app.post("/api/phone/config")
+def api_phone_config():
+    data = request.get_json(force=True) or {}
+    if data.get("new_pin"):
+        phone.new_pin()
+        store.log("Made a new phone PIN; phones need to enter it again.")
+    if "enabled" in data:
+        store.update_config(phone_access=bool(data["enabled"]))
+    status = phone.sync(app)
+    if status == "error":
+        store.update_config(phone_access=False)
+        return _err(f"Couldn't open port {phone.PORT} (another program may be using it).", 500)
+    return api_phone()
+
+
+@app.get("/api/phone/qr.png")
+def api_phone_qr():
+    addr = request.args.get("addr", "")
+    allowed = phone.addresses()
+    if addr not in allowed["wifi"] + allowed["tailscale"]:
+        return _err("Unknown address.", 400)
+    png = phone.qr_png(phone.url_for(addr) + "#pin-" + phone.settings()["pin"])
+    return png, 200, {"Content-Type": "image/png", "Cache-Control": "no-store"}
 
 
 @app.get("/")
@@ -83,7 +159,10 @@ def api_state():
     games.sort(key=lambda g: -(g.get("playtime_min") or 0))
     settings = {k: v for k, v in cfg.items() if k != "games"}
     settings["start_with_windows"] = autostart.enabled()  # lives in Windows, not in config.json
+    remote = phone.is_phone_request(request)
+    settings = phone.redact(settings) if remote else {k: v for k, v in settings.items() if k != "phone_token"}
     return jsonify({
+        "remote": remote,
         "settings": settings,
         "games": games,
         "campaigns": state.get("campaigns") or [],
@@ -182,6 +261,9 @@ def api_now():
 @app.post("/api/settings")
 def api_settings():
     data = request.get_json(force=True) or {}
+    if phone.is_phone_request(request):  # the phone may change everyday options, not secrets or PC things
+        data = {k: v for k, v in data.items() if k not in phone.PC_ONLY_SETTINGS}
+    data.pop("phone_access", None)  # only through Settings > Phone access (/api/phone/config)
     if "start_with_windows" in data:
         if not autostart.supported():
             return _err("Starting with Windows only works on Windows.")
@@ -611,6 +693,7 @@ def main():
     if not args.no_browser:
         threading.Timer(1.5, lambda: webbrowser.open(url)).start()
 
+    phone.sync(app)  # phone access, if you switched it on (its own server, port 5578)
     import tray
     if args.console or not tray.available():
         print(f"\n  Loot Radar is running. Dashboard: {url}\n  Close this window to stop it.\n", flush=True)

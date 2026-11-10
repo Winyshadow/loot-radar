@@ -6,6 +6,16 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.5.0 (2026-11-10)
+
+- New **bottom dock**: when you scroll down and the top menu goes out of view, the same menu slides up at the bottom of the window (Overview, Browse, Library, Activity, Settings), with one status chip ("All OK" or "1 issue"). Scroll back up and it slides away. You never lose the menu again.
+- New **Phone access** (Settings): check your drops on your phone.
+  - Tick **Let my phone connect**, scan the QR code with your phone's camera, and you're in. Or open the address shown and type the 6-digit PIN.
+  - Works on home Wi-Fi. With **Tailscale** (free) on the PC and the phone, it also works from anywhere, without opening anything to the internet. Settings shows the Tailscale address when it finds one.
+  - "Add to Home Screen" on the phone makes it open like an app, with a tab bar at the bottom.
+  - Safe by default: it's off until you switch it on, it uses its own separate port (5578), every phone needs the PIN, and 5 wrong PINs lock that device out for 10 minutes. The phone never receives your Steam key, Discord link or passwords, and can't change them, log the miner in, or change phone access. **New PIN** signs every phone out.
+  - Windows may ask once whether Python may use the network: allow it on Private networks.
+
 ## 1.4.3 (2026-11-10)
 
 - Clearer Steam setup steps: after clicking **Register** on Steam's API key page, you have to approve the request in the **Steam app on your phone** (🔔 notifications). This is now its own highlighted step. It also says to click Register only once, because every extra click sends another request (if there are several, approve the newest).

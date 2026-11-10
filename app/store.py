@@ -32,6 +32,9 @@ DEFAULT_CONFIG = {
     "alert_library_drops": True,    # ping about drops for games you have but haven't set up  # restart the miner above this (0 = off)
     "steam_skipped": False,         # "Skip Steam for now" ticked: no setup reminders for it
     "discord_skipped": False,       # same for Discord
+    "phone_access": False,          # second server on the network for your phone (see phone.py)
+    "phone_pin": "",                # 6 digits, made on first use
+    "phone_token": "",              # phone session secret; a new PIN replaces it (signs phones out)
     "games": {},  # appid -> {name, playtime_min, last_played, mode, twitch_name, order}
 }
 

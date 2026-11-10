@@ -2,9 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Loot Radar</title>
 <link rel="icon" type="image/png" href="/icon.png">
+<link rel="apple-touch-icon" href="/icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#071b27">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Loot Radar">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -266,6 +272,34 @@
            background: rgba(10, 36, 50, .95); border: 1px solid var(--line2); box-shadow: 0 12px 40px rgba(0, 0, 0, .5); backdrop-filter: blur(10px); }
   .toast.ok { border-color: rgba(182, 240, 60, .6); } .toast.bad { border-color: var(--red); }
 
+  /* ---------- bottom dock: appears once the top menu has scrolled away (always on phones) */
+  body { padding-bottom: 84px; }
+  .dock { position: fixed; left: 50%; bottom: 16px; z-index: 40; display: flex; gap: 4px; align-items: center; padding: 5px;
+          border-radius: 99px; background: rgba(8, 30, 42, .94); border: 1px solid var(--line2); box-shadow: 0 14px 40px rgba(0, 0, 0, .5);
+          backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); max-width: calc(100vw - 20px);
+          transform: translate(-50%, 160%); opacity: 0; pointer-events: none; transition: transform .28s cubic-bezier(.2, .8, .2, 1), opacity .2s; }
+  .dock.show { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+  .dock a { position: relative; display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 99px; color: var(--dim); font-weight: 500; white-space: nowrap; }
+  .dock a:hover { color: var(--text); text-decoration: none; }
+  .dock a.on { color: var(--text); background: var(--glass3); box-shadow: inset 0 0 0 1px var(--line2); }
+  .dock a.on svg { color: var(--lime); }
+  .dock svg { width: 16px; height: 16px; flex: none; }
+  .dock .badge { min-width: 16px; height: 16px; padding: 0 4px; border-radius: 99px; background: var(--lime); color: #0a2230; font-size: 10px; font-weight: 700; display: grid; place-items: center; }
+  .dock .chip-status { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 12px; margin-left: 4px; border-radius: 99px; border: 1px solid var(--line); background: rgba(5, 25, 36, .45); color: var(--dim); font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; flex: none; }
+  .dock .chip-status i { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 10px var(--limeglow); }
+  .dock .chip-status.warn i { background: var(--amber); box-shadow: none; } .dock .chip-status.bad i { background: var(--red); box-shadow: none; }
+
+  /* ---------- phone access card; and what the phone itself hides */
+  .phone-grid { display: grid; grid-template-columns: 220px 1fr; gap: 22px; align-items: start; }
+  .qr { width: 220px; height: 220px; border-radius: 16px; background: #fff; padding: 8px; display: block; }
+  .phone-steps { margin: 0; padding-left: 20px; display: grid; gap: 8px; color: var(--dim); }
+  .phone-steps b, .phone-steps code { color: var(--text); }
+  .pinbox { font-size: 26px; font-weight: 700; letter-spacing: 6px; color: var(--lime); }
+  .addr-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .remote .pc-only { display: none !important; }
+  .phone-only { display: none; } .remote .phone-only { display: flex; }
+  @media (max-width: 760px) { .phone-grid { grid-template-columns: 1fr; } .qr { margin: 0 auto; } }
+
   @media (max-width: 1100px) {
     .stats { grid-template-columns: repeat(2, 1fr); }
     .now { grid-template-columns: 1fr 1fr; } .now .ncard:first-child { grid-column: 1 / -1; }
@@ -285,6 +319,16 @@
     .drop { grid-template-columns: 40px 1fr; } .drop .hide-sm { display: none; }
     .hide-sm { display: none; }
     .filters input { width: 100%; }
+    /* phones: the dock is the tab bar, always there; the top menu keeps the logo and status dots */
+    nav.top .tabs { display: none; }
+    body { padding-bottom: calc(78px + env(safe-area-inset-bottom)); }
+    .dock, .dock.show { left: 0; right: 0; bottom: 0; transform: none; opacity: 1; pointer-events: auto; max-width: none; justify-content: space-around;
+            border-radius: 18px 18px 0 0; border-bottom: 0; padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); }
+    .dock a { flex-direction: column; gap: 3px; padding: 6px 8px; font-size: 10.5px; border-radius: 12px; }
+    .dock a .badge { position: absolute; top: 2px; right: 6px; }
+    .dock svg { width: 20px; height: 20px; }
+    .dock .chip-status { display: none; }
+    .toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
   }
 </style>
 </head>
@@ -322,6 +366,7 @@
       <span class="dot" id="c-muted"><i></i>Muted</span>
     </div>
   </nav>
+  <nav class="dock" id="dock" aria-label="Menu"></nav>
 
   <!-- ===================== OVERVIEW -->
   <section class="page" id="p-overview">
@@ -331,7 +376,7 @@
       <button class="lime" id="btn-check">Check now</button>
     </div>
 
-    <div class="banner" id="setup-banner" style="display:none">
+    <div class="banner pc-only" id="setup-banner" style="display:none">
       <b id="setup-title">Finish setting up</b><span class="muted" id="setup-missing"></span>
       <a href="#/settings" style="margin-left:auto"><button class="sm">Open settings</button></a>
     </div>
@@ -542,6 +587,9 @@
   <!-- ===================== SETTINGS -->
   <section class="page" id="p-settings">
     <div class="head"><h1>Settings</h1></div>
+    <div class="banner violet phone-only">
+      <b>You're on your phone</b><span class="muted">Steam, Discord, the Twitch login and phone access can only be changed on the PC. Everything else works here.</span>
+    </div>
 
     <div class="cards3">
       <div class="card" id="st-miner">
@@ -556,12 +604,12 @@
         <div class="muted" id="miner-account" style="display:none"></div>
         <div class="row" id="miner-actions"></div>
         <div class="faint" id="miner-job" style="display:none"></div>
-        <div class="row"><button class="lime" id="btn-miner-login">Log the miner in to Twitch</button><button id="btn-test-miner">Check connection</button></div>
-        <div class="faint" id="miner-login-note">You sign in once in Loot Radar's window; it passes the login to the miner. Muted mode uses the same sign-in. <a href="http://127.0.0.1:8080" target="_blank">Open miner dashboard</a></div>
+        <div class="row"><button class="lime pc-only" id="btn-miner-login">Log the miner in to Twitch</button><button id="btn-test-miner">Check connection</button></div>
+        <div class="faint pc-only" id="miner-login-note">You sign in once in Loot Radar's window; it passes the login to the miner. Muted mode uses the same sign-in. <a href="http://127.0.0.1:8080" target="_blank">Open miner dashboard</a></div>
         <div class="faint">Until you pick games (Library or Browse drops), the miner mines any drop your linked accounts can get.</div>
       </div>
 
-      <div class="card" id="st-steam">
+      <div class="card pc-only" id="st-steam">
         <h3><span class="n">2</span>Steam<span class="tag opt">Optional</span></h3>
         <div class="faint">Loads your Steam games so Loot Radar can pick out drops for games you own. Without it, add games from <a href="#/browse">Browse drops</a>.</div>
         <details id="help-steam"><summary>How to get these</summary>
@@ -578,7 +626,7 @@
         <label class="check-line skip"><input type="checkbox" id="s-skip-steam"> Skip Steam for now (no reminders; untick any time)</label>
       </div>
 
-      <div class="card" id="st-discord">
+      <div class="card pc-only" id="st-discord">
         <h3><span class="n">3</span>Discord<span class="tag opt">Optional</span></h3>
         <div class="faint">Pings a Discord channel about new drops, Steam news and claimed rewards. Loot Radar works fine without it.</div>
         <details id="help-discord"><summary>How to get this</summary>
@@ -592,6 +640,12 @@
         <label class="check-line"><input type="checkbox" id="s-sync-hook"> Let the miner post "drop claimed" messages here too</label>
         <label class="check-line skip"><input type="checkbox" id="s-skip-discord"> Skip Discord for now (no reminders; untick any time)</label>
       </div>
+    </div>
+
+    <div class="panel pc-only" id="phone-panel">
+      <div class="phead"><h2>Phone access</h2><span class="muted">check your drops from your phone</span>
+        <div class="right"><label class="check-line"><input type="checkbox" id="s-phone"> Let my phone connect</label></div></div>
+      <div id="phone-body" style="padding:6px 18px 18px"></div>
     </div>
 
     <div class="panel" id="updates-panel">
@@ -609,7 +663,7 @@
     <div class="panel">
       <div class="phead"><h2>Preferences</h2><div class="right"><button class="lime sm" id="btn-save-settings">Save preferences</button></div></div>
       <div class="grid2">
-        <div style="grid-column:1/-1; display:grid; gap:6px">
+        <div class="pc-only" style="grid-column:1/-1; display:grid; gap:6px">
           <label class="check-line"><input type="checkbox" id="s-win-start"> Start Loot Radar when I sign in to Windows</label>
           <div class="faint" style="font-size:12px">Starts quietly in the system tray, without opening this page. Saved as soon as you tick it.</div></div>
         <div class="field"><label>Steam news alerts</label>
@@ -670,15 +724,92 @@ function route() {
   let p = (location.hash.match(/^#\/(\w+)/) || [])[1];
   if (!PAGES.includes(p)) p = "overview";
   $$(".page").forEach(el => el.classList.toggle("on", el.id === "p-" + p));
-  $$("#tabs a").forEach(a => a.classList.toggle("on", a.dataset.p === p));
+  $$("#tabs a, #dock a").forEach(a => a.classList.toggle("on", a.dataset.p === p));
   if (p === "browse" && !ALL) loadAllDrops();
+  if (p === "settings") loadPhone();
   window.scrollTo({ top: 0 });
 }
 window.addEventListener("hashchange", route);
 
+/* ---------------- bottom dock: the same menu, shown once the top one scrolls out of view */
+(function buildDock() {
+  const dock = $("#dock");
+  document.body.appendChild(dock);  // outside .shell: its frosted-glass blur would pin "fixed" to the shell, not the window
+  dock.innerHTML = $$("#tabs a").map(a => {
+    const c = a.cloneNode(true);
+    c.querySelector(".badge")?.removeAttribute("id");
+    c.childNodes.forEach(n => { if (n.nodeType === 3 && n.textContent.trim() === "Browse drops") n.textContent = "Browse"; });
+    return c.outerHTML;
+  }).join("") + `<span class="chip-status" id="dock-status" role="button" tabindex="0" title="Back to the top to see the details"><i></i><span>All OK</span></span>`;
+  const top = $("nav.top");
+  if ("IntersectionObserver" in window)
+    new IntersectionObserver(([e]) => dock.classList.toggle("show", !e.isIntersecting), { threshold: 0 }).observe(top);
+  else dock.classList.add("show");
+  $("#dock-status").addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+})();
+/* ---------------- phone access (Settings on the PC) */
+let PHONE = null, PHONE_ADDR = "", PHONE_V = 0;  // PHONE_V: new QR image after a new PIN
+async function loadPhone() {
+  if (!S) { setTimeout(loadPhone, 600); return; }  // page data not loaded yet (Settings opened first)
+  if (S.remote) return;
+  try { PHONE = await api("/api/phone"); } catch (e) { PHONE = { error: e.message }; }
+  renderPhone();
+}
+function renderPhone() {
+  const p = PHONE, body = $("#phone-body");
+  if (!p) { body.innerHTML = `<div class="faint">Loading…</div>`; return; }
+  if (p.error) { body.innerHTML = `<div class="faint">${esc(p.error)}</div>`; return; }
+  $("#s-phone").checked = !!p.enabled;
+  const tsHelp = `<b>Away from home:</b> install <a href="https://tailscale.com/download" target="_blank">Tailscale</a> (free) on this PC and on your phone, and sign in with the same account on both. This card then shows a Tailscale address that works from anywhere, privately (nothing is opened to the internet).`;
+  if (!p.enabled) {
+    body.innerHTML = `<div class="faint" style="display:grid;gap:8px;max-width:760px">
+      <div>See your drops, mining progress and claimed rewards on your phone, and change the mining order or pause muted mode from there.</div>
+      <div>Tick <b>Let my phone connect</b> to get a QR code. Your phone then needs a 6-digit PIN, and it never gets to see your Steam key, Discord link or passwords.</div>
+      <div>${tsHelp}</div></div>`;
+    return;
+  }
+  const opts = [...p.wifi.map(a => ({ a, kind: "Home Wi-Fi" })), ...p.tailscale.map(a => ({ a, kind: "Tailscale (anywhere)" }))];
+  if (!opts.length) { body.innerHTML = `<div class="faint">This PC doesn't seem to be on a network right now.</div>`; return; }
+  if (!opts.some(o => o.a === PHONE_ADDR)) PHONE_ADDR = opts[0].a;
+  const cur = opts.find(o => o.a === PHONE_ADDR), url = `http://${cur.a}:${p.port}`;
+  body.innerHTML = `<div class="addr-pills">${opts.map(o => `<button class="pill sm ${o.a === PHONE_ADDR ? "on" : ""}" data-phone-addr="${esc(o.a)}">${esc(o.kind)} · ${esc(o.a)}</button>`).join("")}</div>
+    <div class="phone-grid">
+      <img class="qr" alt="QR code for ${esc(url)}" src="/api/phone/qr.png?addr=${encodeURIComponent(cur.a)}&v=${PHONE_V}">
+      <div style="display:grid;gap:14px">
+        <ol class="phone-steps">
+          <li>${cur.kind === "Home Wi-Fi" ? "Put your phone on the <b>same Wi-Fi</b> as this PC." : "Make sure <b>Tailscale is on</b> on your phone."}</li>
+          <li><b>Scan the QR code</b> with your phone's camera. It fills in the PIN for you.<br>Or open <code>${esc(url)}</code> in the phone's browser and type the PIN:</li>
+        </ol>
+        <div class="pinbox">${esc(p.pin)}</div>
+        <ol class="phone-steps" start="3">
+          <li><b>Add it to your home screen</b> so it opens like an app. iPhone (Safari): Share → <b>Add to Home Screen</b>. Android (Chrome): ⋮ → <b>Add to Home screen</b>.</li>
+          <li>If the phone can't connect: Windows may have asked whether to let <b>Python</b> use the network. Allow it on <b>Private networks</b> (Windows Security → Firewall → Allow an app).</li>
+        </ol>
+        ${p.tailscale.length ? "" : `<div class="faint">${tsHelp}</div>`}
+        <div class="row"><button class="sm" data-act="phone-new-pin">New PIN (signs phones out)</button></div>
+      </div>
+    </div>`;
+}
+async function setPhone(body, okMsg) {
+  try { PHONE = await api("/api/phone/config", body); renderPhone(); if (okMsg) toast(okMsg, "ok"); }
+  catch (e) { toast(e.message, "bad"); loadPhone(); }
+}
+
+function syncDock() {
+  // one status chip instead of four dots: anything red or amber (that isn't skipped) counts as an issue
+  const dots = ["#c-steam", "#c-discord", "#c-miner"].map(id => $(id));
+  const bad = dots.filter(d => d.classList.contains("bad")).length, warn = dots.filter(d => d.classList.contains("warn")).length;
+  const chip = $("#dock-status"), n = bad + warn;
+  chip.className = "chip-status" + (bad ? " bad" : warn ? " warn" : "");
+  chip.querySelector("span").textContent = n ? `${n} issue${n === 1 ? "" : "s"}` : "All OK";
+  chip.title = dots.map(d => d.textContent).join(" · ");
+  const b = $("#dock .badge"); if (b) b.style.display = $("#setup-badge").style.display;
+}
+
 /* ---------------- header + overview */
 function render() {
   const st = S.settings;
+  document.body.classList.toggle("remote", !!S.remote);  // opened from the phone: hide PC-only parts
   const steamOk = !!(st.steam_api_key && st.steam_id), hookOk = !!st.discord_webhook, mOk = S.miner_status === "ok";
   const steamSkip = !steamOk && !!st.steam_skipped, hookSkip = !hookOk && !!st.discord_skipped;  // optional, put off
   dot("#c-steam", steamOk ? "ok" : steamSkip ? "" : "warn", steamOk ? "Steam" : steamSkip ? "Steam skipped" : "Steam off");
@@ -1055,7 +1186,7 @@ function renderMinerCard(mOk, mem, memTxt) {
       ? `<span class="tag warn">Not signed in</span> <span class="faint">Press <b>Log the miner in to Twitch</b> below.${acc.status ? " (Miner says: " + esc(acc.status) + ")" : ""}</span>`
       : `<span class="tag soon">Twitch login unknown</span> <span class="faint">${esc(acc.status || "Checking…")}</span>`;
   loginBtn.textContent = signedIn ? "Switch Twitch account" : "Log the miner in to Twitch";
-  loginBtn.className = signedIn ? "" : "lime";
+  loginBtn.classList.toggle("lime", !signedIn);
   const md = $("#c-miner"); md.title = (md.title ? md.title + "\n" : "") + (signedIn ? "Twitch: " + acc.user : "Twitch: not signed in");
   const acts = [];
   if (!bi) acts.push(`<button class="lime" data-act="miner-install" ${busy ? "disabled" : ""}>Install miner</button>`);
@@ -1097,6 +1228,7 @@ function renderUpdates() {
   ub.style.display = items.length ? "" : "none";
   ub.innerHTML = items.join(" · ") + (uj.state === "working" || uj.state === "done" ? "" : ' <a href="#/settings" style="margin-left:auto"><button class="sm">See updates</button></a>');
   $("#setup-badge").style.display = (lr.available || (mn.available && S.miner_builtin) || $("#setup-banner").style.display !== "none") ? "" : "none";
+  syncDock();
 }
 
 function fillForms() {
@@ -1230,6 +1362,11 @@ document.addEventListener("click", async e => {
     runSig = ""; return;
   }
   const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.phoneAddr) { PHONE_ADDR = b.dataset.phoneAddr; renderPhone(); return; }
+  if (b.dataset.act === "phone-new-pin") {
+    if (confirm("Make a new PIN? Phones that are signed in will need to enter the new one.")) { PHONE_V++; setPhone({ new_pin: true }, "New PIN made. Phones are signed out."); }
+    return;
+  }
   try {
     if (b.closest(".seg[data-src=all]")) {
       const tr = b.closest("tr"), mode = b.dataset.m, name = tr.dataset.game;
@@ -1306,6 +1443,11 @@ document.addEventListener("change", async e => {
           S.settings.priority_auto_sort = e.target.checked; runSig = ""; renderRunning();
           toast(e.target.checked ? "Always sorted by ending soonest." : "Your own order is kept.", "ok"); }
     catch (err) { toast(err.message, "bad"); }
+    return;
+  }
+  if (e.target.id === "s-phone") {
+    const on = e.target.checked;
+    await setPhone({ enabled: on }, on ? "Phone access is on. Scan the QR code with your phone." : "Phone access is off.");
     return;
   }
   if (e.target.id === "s-skip-steam" || e.target.id === "s-skip-discord") {
