@@ -6,6 +6,10 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.4.3 (2026-11-10)
+
+- Clearer Steam setup steps: after clicking **Register** on Steam's API key page, you have to approve the request in the **Steam app on your phone** (🔔 notifications). This is now its own highlighted step. It also says to click Register only once, because every extra click sends another request (if there are several, approve the newest).
+
 ## 1.4.2 (2026-11-10)
 
 - New warning on the Overview when a game you want mined has a live campaign but its game account isn't linked on Twitch: "⚠️ 1 game can't mine yet". Twitch doesn't count watch time for those, so the miner skips them. Each game gets a **Link** button that opens its account-linking page, and mining starts by itself a few minutes after you link.

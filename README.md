@@ -36,7 +36,7 @@ Open **Settings** on the dashboard:
 
 | Step | What to do |
 |---|---|
-| 1. Steam | Get a key at [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey) (domain: `localhost`), paste it with your profile link. Your Steam profile's **Game details** must be **Public** |
+| 1. Steam | Get a key at [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey) (domain: `localhost`, click Register **once**, then approve the request in the Steam app on your phone under 🔔 notifications), paste it with your profile link. Your Steam profile's **Game details** must be **Public** |
 | 2. Discord | In your server: channel ⚙️ → **Integrations → Webhooks → New Webhook → Copy Webhook URL**. Paste it and press **Send test** |
 | 3. Drop miner | Press **Install miner**, then **Log the miner in to Twitch** and sign in |
 | 4. Link games | Link your game accounts at [twitch.tv/drops/campaigns](https://www.twitch.tv/drops/campaigns), or drops never arrive |

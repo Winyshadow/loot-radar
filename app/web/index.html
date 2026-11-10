@@ -247,6 +247,7 @@
   .card.skipped > :not(h3):not(.skip) { opacity: .45; }
   .card .check-line.skip { font-size: 12px; padding-top: 4px; border-top: 1px dashed var(--line); }
   .card ol { margin: 0; padding-left: 18px; color: var(--dim); font-size: 13px; display: grid; gap: 4px; }
+  .card ol li.callout { color: var(--text); background: rgba(244, 194, 90, .12); border: 1px solid rgba(244, 194, 90, .4); border-radius: 10px; padding: 8px 10px; margin: 2px 0; }
   details summary { cursor: pointer; color: var(--dim); font-size: 13px; }
   details summary:hover { color: var(--text); }
   .field label { display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px; font-weight: 600; }
@@ -566,8 +567,9 @@
         <details id="help-steam"><summary>How to get these</summary>
           <ol style="margin-top:8px">
             <li>Open <a href="https://steamcommunity.com/dev/apikey" target="_blank">steamcommunity.com/dev/apikey</a> and sign in.</li>
-            <li>Domain name: type <b>localhost</b>, tick the box, click Register.</li>
-            <li>Copy the key into the box below.</li>
+            <li>Domain name: type <b>localhost</b>, tick the box, click <b>Register</b> <u>once</u>.</li>
+            <li class="callout"><b>📱 Now approve it in the Steam app on your phone.</b> Steam doesn't make the key until you do. Open the Steam app, tap the <b>🔔 notifications</b> bell and approve the <b>API key</b> request. Don't click Register again while you wait: every click sends another request. If you see more than one, approve the newest.</li>
+            <li>Back on the Steam page, copy the key into the box below.</li>
             <li>Your Steam profile's <b>Game details</b> privacy must be <b>Public</b>.</li>
           </ol></details>
         <div class="field"><label>Steam API key</label><input id="f-key" placeholder="32-character key" autocomplete="off"></div>
