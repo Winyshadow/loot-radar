@@ -6,6 +6,13 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.4.0 (2026-11-10)
+
+- Fixed: a fresh setup with no games picked yet (no Steam connected, nothing added) didn't mine at all, even with the miner logged in. Until you pick games, the miner now mines any drop your linked accounts can get. As soon as you set a game to Auto-mine or Muted, it goes back to mining only the games you picked.
+- Setup is clearer. The drop miner is now step 1 and marked **Required**. Steam and Discord are marked **Optional**, with a short note on what each one adds.
+- New **Skip Steam for now** and **Skip Discord for now** tick boxes. Ticking one hides its setup reminder (and the "!" on Settings); untick any time to bring it back.
+- The Overview's reminder now says to start with the drop miner, and turns into a soft "Optional extras" note once the miner works.
+
 ## 1.3.0 (2026-11-09)
 
 - New: **Streamers** button on every sub-only drop. It lists the channels streaming that game live with drops on, most viewers first, with their stream title. Each one has **Watch** and **Subscribe** links (Subscribe opens Twitch's subscribe page for that streamer), so you can pick who to sub to for the drop.

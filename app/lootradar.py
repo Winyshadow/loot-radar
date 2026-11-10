@@ -180,7 +180,8 @@ def api_settings():
                     cfg[key] = 512  # the miner legitimately needs a few hundred MB
             except (TypeError, ValueError):
                 pass
-    for key in ("auto_start_miner", "auto_update_miner", "alert_library_drops", "priority_auto_sort"):
+    for key in ("auto_start_miner", "auto_update_miner", "alert_library_drops", "priority_auto_sort",
+                "steam_skipped", "discord_skipped"):
         if key in data:
             cfg[key] = bool(data[key])
     if "sync_miner_webhook" in data:

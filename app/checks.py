@@ -337,8 +337,14 @@ def sync_miner(miner: Miner, cfg: dict, campaigns: list[dict] | None) -> None:
         changes["games_to_watch"] = wanted
     if current.get("preferred_games"):
         changes["preferred_games"] = []  # older Loot Radar versions used this list; empty it
-    if current.get("priority_list_only") is not True:
-        changes["priority_list_only"] = True  # only mine the games you picked
+    # Only mine the games you picked. Until you've picked any (no Steam, nothing added yet), let
+    # the miner mine every drop your linked accounts can get, so a fresh setup isn't idle.
+    picked = any(g.get("mode") in ("miner", "muted") for g in games.values())
+    if current.get("priority_list_only") is not picked:
+        changes["priority_list_only"] = picked
+        store.log("Mining only the games you picked." if picked else
+                  "No games picked yet, so the miner mines any drop your linked accounts can get. "
+                  "Pick games in Library or Browse drops to choose what it mines.")
     if current.get("auto_prioritize"):
         changes["auto_prioritize"] = False  # Loot Radar owns the order now
     hook = cfg.get("discord_webhook", "")
@@ -347,7 +353,8 @@ def sync_miner(miner: Miner, cfg: dict, campaigns: list[dict] | None) -> None:
     if changes:
         miner.update_settings(changes)
         if "games_to_watch" in changes:
-            store.log("Mining order updated: " + (", ".join(wanted) if wanted else "(nothing to mine)"))
+            store.log("Mining order updated: " + (", ".join(wanted) if wanted else
+                                                  "(nothing picked)" if not picked else "(nothing to mine right now)"))
 
 
 # ------------------------------------------------------------------ completed drops

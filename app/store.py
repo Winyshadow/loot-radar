@@ -30,6 +30,8 @@ DEFAULT_CONFIG = {
     "auto_start_miner": True,       # start the built-in miner with Loot Radar
     "auto_update_miner": False,     # install new miner releases without asking
     "alert_library_drops": True,    # ping about drops for games you have but haven't set up  # restart the miner above this (0 = off)
+    "steam_skipped": False,         # "Skip Steam for now" ticked: no setup reminders for it
+    "discord_skipped": False,       # same for Discord
     "games": {},  # appid -> {name, playtime_min, last_played, mode, twitch_name, order}
 }
 

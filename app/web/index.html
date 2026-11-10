@@ -238,6 +238,11 @@
   .card h3 { margin: 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
   .card h3 .n { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; background: var(--glass3); border: 1px solid var(--line2); }
   .card.done h3 .n { background: var(--lime); color: #0a2230; border-color: var(--lime); }
+  .card h3 .tag { margin-left: auto; }
+  .tag.req { background: rgba(182, 240, 60, .14); color: var(--lime); }
+  .tag.opt { background: var(--glass3); color: var(--dim); }
+  .card.skipped > :not(h3):not(.skip) { opacity: .45; }
+  .card .check-line.skip { font-size: 12px; padding-top: 4px; border-top: 1px dashed var(--line); }
   .card ol { margin: 0; padding-left: 18px; color: var(--dim); font-size: 13px; display: grid; gap: 4px; }
   details summary { cursor: pointer; color: var(--dim); font-size: 13px; }
   details summary:hover { color: var(--text); }
@@ -323,7 +328,7 @@
     </div>
 
     <div class="banner" id="setup-banner" style="display:none">
-      <b>Finish setting up</b><span class="muted" id="setup-missing"></span>
+      <b id="setup-title">Finish setting up</b><span class="muted" id="setup-missing"></span>
       <a href="#/settings" style="margin-left:auto"><button class="sm">Open settings</button></a>
     </div>
     <div class="banner violet" id="muted-banner" style="display:none"></div>
@@ -534,8 +539,25 @@
     <div class="head"><h1>Settings</h1></div>
 
     <div class="cards3">
+      <div class="card" id="st-miner">
+        <h3><span class="n">1</span>Drop miner<span class="tag req">Required</span></h3>
+        <details id="help-miner"><summary>How it works</summary>
+          <ol style="margin-top:8px">
+            <li>Press <b>Install miner</b>. Loot Radar downloads <a href="https://github.com/SimpliAj/twitchdropsminer" target="_blank">Twitch Drops Miner</a> from its official GitHub and starts it.</li>
+            <li>Press <b>Log the miner in to Twitch</b> and sign in.</li>
+            <li>Link your game accounts on <a href="https://www.twitch.tv/drops/campaigns" target="_blank">twitch.tv/drops/campaigns</a>. Drops only count for games whose account is linked.</li>
+          </ol></details>
+        <div class="muted" id="miner-summary">—</div>
+        <div class="row" id="miner-actions"></div>
+        <div class="faint" id="miner-job" style="display:none"></div>
+        <div class="row"><button class="lime" id="btn-miner-login">Log the miner in to Twitch</button><button id="btn-test-miner">Check connection</button></div>
+        <div class="faint" id="miner-login-note">You sign in once in Loot Radar's window; it passes the login to the miner. Muted mode uses the same sign-in. <a href="http://127.0.0.1:8080" target="_blank">Open miner dashboard</a></div>
+        <div class="faint">Until you pick games (Library or Browse drops), the miner mines any drop your linked accounts can get.</div>
+      </div>
+
       <div class="card" id="st-steam">
-        <h3><span class="n">1</span>Steam</h3>
+        <h3><span class="n">2</span>Steam<span class="tag opt">Optional</span></h3>
+        <div class="faint">Loads your Steam games so Loot Radar can pick out drops for games you own. Without it, add games from <a href="#/browse">Browse drops</a>.</div>
         <details id="help-steam"><summary>How to get these</summary>
           <ol style="margin-top:8px">
             <li>Open <a href="https://steamcommunity.com/dev/apikey" target="_blank">steamcommunity.com/dev/apikey</a> and sign in.</li>
@@ -546,10 +568,12 @@
         <div class="field"><label>Steam API key</label><input id="f-key" placeholder="32-character key" autocomplete="off"></div>
         <div class="field"><label>Your Steam profile link</label><input id="f-profile" placeholder="https://steamcommunity.com/id/yourname"></div>
         <div class="row"><button class="lime" id="btn-save-steam">Connect &amp; load games</button></div>
+        <label class="check-line skip"><input type="checkbox" id="s-skip-steam"> Skip Steam for now (no reminders; untick any time)</label>
       </div>
 
       <div class="card" id="st-discord">
-        <h3><span class="n">2</span>Discord</h3>
+        <h3><span class="n">3</span>Discord<span class="tag opt">Optional</span></h3>
+        <div class="faint">Pings a Discord channel about new drops, Steam news and claimed rewards. Loot Radar works fine without it.</div>
         <details id="help-discord"><summary>How to get this</summary>
           <ol style="margin-top:8px">
             <li>Hover the channel you want alerts in and click ⚙️ (Edit Channel).</li>
@@ -559,21 +583,7 @@
         <div class="field"><label>Discord webhook link</label><input id="f-hook" placeholder="https://discord.com/api/webhooks/…" autocomplete="off"></div>
         <div class="row"><button class="lime" id="btn-save-discord">Save</button><button id="btn-test-discord">Send test</button></div>
         <label class="check-line"><input type="checkbox" id="s-sync-hook"> Let the miner post "drop claimed" messages here too</label>
-      </div>
-
-      <div class="card" id="st-miner">
-        <h3><span class="n">3</span>Drop miner</h3>
-        <details id="help-miner"><summary>How it works</summary>
-          <ol style="margin-top:8px">
-            <li>Press <b>Install miner</b>. Loot Radar downloads <a href="https://github.com/SimpliAj/twitchdropsminer" target="_blank">Twitch Drops Miner</a> from its official GitHub and starts it.</li>
-            <li>Press <b>Log the miner in to Twitch</b> and sign in.</li>
-            <li>Link your game accounts on <a href="https://www.twitch.tv/drops/campaigns" target="_blank">twitch.tv/drops/campaigns</a>.</li>
-          </ol></details>
-        <div class="muted" id="miner-summary">—</div>
-        <div class="row" id="miner-actions"></div>
-        <div class="faint" id="miner-job" style="display:none"></div>
-        <div class="row"><button class="lime" id="btn-miner-login">Log the miner in to Twitch</button><button id="btn-test-miner">Check connection</button></div>
-        <div class="faint" id="miner-login-note">You sign in once in Loot Radar's window; it passes the login to the miner. Muted mode uses the same sign-in. <a href="http://127.0.0.1:8080" target="_blank">Open miner dashboard</a></div>
+        <label class="check-line skip"><input type="checkbox" id="s-skip-discord"> Skip Discord for now (no reminders; untick any time)</label>
       </div>
     </div>
 
@@ -663,8 +673,9 @@ window.addEventListener("hashchange", route);
 function render() {
   const st = S.settings;
   const steamOk = !!(st.steam_api_key && st.steam_id), hookOk = !!st.discord_webhook, mOk = S.miner_status === "ok";
-  dot("#c-steam", steamOk ? "ok" : "bad", steamOk ? "Steam" : "Steam off");
-  dot("#c-discord", hookOk ? "ok" : "warn", "Discord");
+  const steamSkip = !steamOk && !!st.steam_skipped, hookSkip = !hookOk && !!st.discord_skipped;  // optional, put off
+  dot("#c-steam", steamOk ? "ok" : steamSkip ? "" : "warn", steamOk ? "Steam" : steamSkip ? "Steam skipped" : "Steam off");
+  dot("#c-discord", hookOk ? "ok" : hookSkip ? "" : "warn", hookSkip ? "Discord skipped" : "Discord");
   const mem = S.miner_memory, limit = st.miner_memory_limit_mb || 0;
   const memTxt = mem ? " · " + (mem.total_mb >= 1024 ? (mem.total_mb / 1024).toFixed(1) + " GB" : mem.total_mb + " MB") : "";
   const memHigh = mem && limit && mem.total_mb > limit * .8;
@@ -675,10 +686,17 @@ function render() {
   dot("#c-muted", mu.state === "watching" ? "live" : ["error", "needs_login"].includes(mu.state) ? "warn" : "",
       mu.state === "watching" ? "Muted · " + (mu.channel || "") : "Muted");
 
-  const missing = [!steamOk && "Steam", !hookOk && "Discord", !mOk && "drop miner"].filter(Boolean);
-  $("#setup-banner").style.display = missing.length ? "" : "none";
-  $("#setup-missing").textContent = missing.length ? "Still to connect: " + missing.join(", ") + "." : "";
+  // The miner is the one thing you need; Steam and Discord are extras you can skip.
+  const optional = [!steamOk && !steamSkip && "Steam", !hookOk && !hookSkip && "Discord"].filter(Boolean);
+  $("#setup-banner").style.display = !mOk || optional.length ? "" : "none";
+  $("#setup-title").textContent = mOk ? "Optional extras" : "Finish setting up";
+  $("#setup-missing").textContent = !mOk
+    ? "Start with the drop miner (step 1): install it and log it in to Twitch." + (optional.length ? ` ${optional.join(" and ")} ${optional.length > 1 ? "are" : "is"} optional.` : "")
+    : `You can connect ${optional.join(" and ")}, or tick "Skip for now" in Settings to hide this.`;
   ["st-steam", "st-discord", "st-miner"].forEach((id, i) => $("#" + id).classList.toggle("done", [steamOk, hookOk, mOk][i]));
+  $("#st-steam").classList.toggle("skipped", steamSkip); $("#st-discord").classList.toggle("skipped", hookSkip);
+  $("#s-skip-steam").checked = !!st.steam_skipped; $("#s-skip-discord").checked = !!st.discord_skipped;
+  $("#s-skip-steam").closest("label").style.display = steamOk ? "none" : ""; $("#s-skip-discord").closest("label").style.display = hookOk ? "none" : "";
   renderMinerCard(mOk, mem, memTxt);
   renderUpdates();
   const ml = S.miner_login || {};
@@ -765,7 +783,7 @@ function renderRunning() {
   if (sig === runSig) return; runSig = sig;
   if (!list.length) {
     const watched = S.games.filter(x => x.mode !== "off").length;
-    $("#running").innerHTML = `<div class="empty">${S.miner_status !== "ok" ? "Start the drop miner to see your drop campaigns." : !watched ? 'Pick some games in <a href="#/library">Library</a> or <a href="#/browse">Browse drops</a>.' : totalGames ? "Nothing in this filter." : "No running drops for your games right now. You'll get a Discord ping when one starts."}</div>`;
+    $("#running").innerHTML = `<div class="empty">${S.miner_status !== "ok" ? "Start the drop miner to see your drop campaigns." : !watched ? 'No games picked yet, so the miner mines any drop your linked accounts can get (see <b>Now mining</b> above). To choose what it mines, pick games in <a href="#/browse">Browse drops</a> or <a href="#/library">Library</a>.' : totalGames ? "Nothing in this filter." : "No running drops for your games right now. You'll get a Discord ping when one starts."}</div>`;
     return;
   }
   $("#running").innerHTML = list.map((g, i) => {
@@ -1057,8 +1075,9 @@ function fillForms() {
   $("#s-auto-start").checked = st.auto_start_miner !== false; $("#s-auto-update").checked = !!st.auto_update_miner;
   $("#s-lib-alerts").checked = st.alert_library_drops !== false;
   $("#s-win-start").checked = !!st.start_with_windows;
-  if (!(st.steam_api_key && st.steam_id)) $("#help-steam").open = true;
-  if (!st.discord_webhook) $("#help-discord").open = true;
+  if (!(st.steam_api_key && st.steam_id) && !st.steam_skipped) $("#help-steam").open = true;
+  if (!st.discord_webhook && !st.discord_skipped) $("#help-discord").open = true;
+  if (S.miner_status !== "ok") $("#help-miner").open = true;
 }
 
 /* ---------------- now mining */
@@ -1252,6 +1271,13 @@ document.addEventListener("change", async e => {
           S.settings.priority_auto_sort = e.target.checked; runSig = ""; renderRunning();
           toast(e.target.checked ? "Always sorted by ending soonest." : "Your own order is kept.", "ok"); }
     catch (err) { toast(err.message, "bad"); }
+    return;
+  }
+  if (e.target.id === "s-skip-steam" || e.target.id === "s-skip-discord") {
+    const key = e.target.id === "s-skip-steam" ? "steam_skipped" : "discord_skipped", on = e.target.checked;
+    try { await api("/api/settings", { [key]: on }); S.settings[key] = on; render();
+          toast(on ? "Skipped. You can connect it any time." : "Reminder back on.", "ok"); }
+    catch (err) { e.target.checked = !on; toast(err.message, "bad"); }
     return;
   }
   if (e.target.id === "s-win-start") {
