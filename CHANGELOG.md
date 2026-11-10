@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.4.2 (2026-11-10)
+
+- New warning on the Overview when a game you want mined has a live campaign but its game account isn't linked on Twitch: "⚠️ 1 game can't mine yet". Twitch doesn't count watch time for those, so the miner skips them. Each game gets a **Link** button that opens its account-linking page, and mining starts by itself a few minutes after you link.
+- In Running drops, those games now say "skipped until you link your account", and their drops say "Waiting for account link" instead of "Up next".
+
 ## 1.4.1 (2026-11-10)
 
 - The Drop miner card in Settings now shows whether the miner is signed in to Twitch, and with which account ("Signed in · Twitch account: yourname"), so you never need to open the miner to check. If it's not signed in, it says so and points to the login button.

@@ -233,6 +233,9 @@
   /* ---------- banners, cards, forms */
   .banner { display: flex; align-items: center; gap: 14px; padding: 14px 18px; margin-bottom: 14px; border-radius: var(--r-lg); border: 1px solid rgba(182, 240, 60, .35); background: linear-gradient(90deg, rgba(182, 240, 60, .12), rgba(182, 240, 60, .02)); flex-wrap: wrap; }
   .banner.violet { border-color: rgba(169, 137, 255, .35); background: linear-gradient(90deg, rgba(169, 137, 255, .14), rgba(169, 137, 255, .02)); }
+  .banner.warn { border-color: rgba(255, 107, 122, .65); background: linear-gradient(90deg, rgba(255, 107, 122, .24), rgba(255, 107, 122, .05)); }
+  .banner.warn > b { color: var(--red); }
+  .banner .links { display: flex; gap: 8px; flex-wrap: wrap; }
   .cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
   .card { border-radius: var(--r-lg); background: rgba(10, 36, 50, .6); border: 1px solid var(--line); padding: 18px; display: grid; gap: 12px; align-content: start; }
   .card h3 { margin: 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
@@ -331,6 +334,7 @@
       <b id="setup-title">Finish setting up</b><span class="muted" id="setup-missing"></span>
       <a href="#/settings" style="margin-left:auto"><button class="sm">Open settings</button></a>
     </div>
+    <div class="banner warn" id="link-banner" style="display:none"></div>
     <div class="banner violet" id="muted-banner" style="display:none"></div>
     <div class="banner" id="update-banner" style="display:none"></div>
 
@@ -751,8 +755,24 @@ function countTo(key, target, isTime) {
   requestAnimationFrame(step);
 }
 
+// Games you want mined whose game account isn't linked on Twitch: Twitch won't count watch time
+// for them, so the miner skips them. Make that impossible to miss, with a link button each.
+function renderLinkBanner(camps) {
+  const need = new Map();
+  for (const c of camps) if (c.active && !c.linked && ["miner", "muted"].includes(c.mode) && !need.has(c.game_name))
+    need.set(c.game_name, c.link_url || "https://www.twitch.tv/drops/campaigns");
+  const el = $("#link-banner");
+  el.style.display = need.size ? "" : "none";
+  if (!need.size) return;
+  el.innerHTML = `<b>⚠️ ${need.size} game${need.size === 1 ? " can't" : "s can't"} mine yet</b>
+    <span class="muted">Link your game account on Twitch first: Twitch doesn't count watch time until you do. Mining starts by itself a few minutes after you link.</span>
+    <div class="links" style="margin-left:auto">${[...need].map(([g, url]) =>
+      `<a href="${esc(url)}" target="_blank"><button class="sm">Link ${esc(g)}</button></a>`).join("")}</div>`;
+}
+
 function renderRunning() {
   const camps = activeCamps();
+  renderLinkBanner(camps);
   const groups = new Map();
   for (const c of camps) { if (!groups.has(c.game_name)) groups.set(c.game_name, []); groups.get(c.game_name).push(c); }
   let list = [...groups.entries()].map(([name, cs]) => {
@@ -800,7 +820,7 @@ function renderRunning() {
         ${pending.map((d, k) => {
           const p = d.required ? Math.min(100, Math.round(d.current / d.required * 100)) : 0;
           return `<div class="drop ${k === nextIdx ? "next" : ""}">${img(d.image, "art sq")}
-            <div><b>${esc(d.name)}</b><div class="faint">${k === nextIdx ? "Up next" : "Queued"}</div></div>
+            <div><b>${esc(d.name)}</b><div class="faint">${!c.linked ? (k === nextIdx ? '<span style="color:var(--red)">Waiting for you to link your account</span>' : "Waiting for account link") : k === nextIdx ? "Up next" : "Queued"}</div></div>
             <div class="bar hide-sm"><b style="width:${p}%"></b></div>
             <div class="faint hide-sm" style="text-align:right">${hm(d.current)} / ${hm(d.required)}</div></div>`;
         }).join("")}</div>`;
@@ -809,7 +829,7 @@ function renderRunning() {
       <div class="grow" draggable="true">
         <span class="prio" title="Drag to change the mining order"><svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="2" cy="3" r="1.5"/><circle cx="8" cy="3" r="1.5"/><circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="2" cy="13" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg><b>#${g.pos}</b></span>
         <div class="who">${img(boxArt(g.art), "art")}<div style="min-width:0"><b>${esc(g.name)}</b>
-          <div class="faint">${g.cs.length} campaign${g.cs.length === 1 ? "" : "s"} · ${g.left} drop${g.left === 1 ? "" : "s"} left · <span style="color:var(--violet)">${MODE_LABEL[g.mode]}</span></div></div></div>
+          <div class="faint">${g.cs.length} campaign${g.cs.length === 1 ? "" : "s"} · ${g.left} drop${g.left === 1 ? "" : "s"} left · <span style="color:var(--violet)">${MODE_LABEL[g.mode]}</span>${!g.linked ? ' · <span style="color:var(--red)">skipped until you link your account</span>' : ""}</div></div></div>
         <div class="hide-md hide-sm"><div class="bar"><b style="width:${g.pct}%"></b></div><div class="faint" style="margin-top:5px">${g.claimed}/${g.total} claimed · ${g.pct}%</div></div>
         <div class="hide-sm">${status}</div>
         <div class="hide-md hide-sm faint">${g.active ? "Ends in " + esc(until(g.ends)) : "Starts in " + esc(until(g.starts))}</div>
