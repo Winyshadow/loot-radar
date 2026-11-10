@@ -6,6 +6,10 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.5.2 (2026-11-10)
+
+- The bottom dock stands out more: a glowing lime border, a darker background, and a short lime pulse when it slides in, so it no longer blends into the page behind it. (No pulse on phones, where it's the always-on tab bar, or if Windows is set to reduce animations.)
+
 ## 1.5.1 (2026-11-10)
 
 - Phone access now has an **Away from home (Tailscale) checklist** that checks your PC and shows ✓ or ✗ for each step, with the fix next to anything missing: Tailscale installed, signed in on this PC (and its 100.x address), your phone found on your Tailscale, and Windows Firewall letting your phone in. A short note explains what Tailscale does. Press **Check again** after fixing something.
