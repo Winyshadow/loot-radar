@@ -299,6 +299,15 @@
   .remote .pc-only { display: none !important; }
   .phone-only { display: none; } .remote .phone-only { display: flex; }
   @media (max-width: 760px) { .phone-grid { grid-template-columns: 1fr; } .qr { margin: 0 auto; } }
+  .ts-box { margin-top: 18px; padding: 14px 16px; border-radius: var(--r-md); background: rgba(4, 20, 30, .45); border: 1px solid var(--line); }
+  .ts-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .ts-list li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; }
+  .ts-ic { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; background: var(--glass3); color: var(--faint); }
+  .ts-ok .ts-ic { background: rgba(182, 240, 60, .18); color: var(--lime); }
+  .ts-bad .ts-ic { background: rgba(255, 107, 122, .18); color: var(--red); }
+  .ts-warn .ts-ic { background: rgba(244, 194, 90, .18); color: var(--amber); }
+  .ts-wait b { color: var(--faint); }
+  .ts-ready { margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: rgba(182, 240, 60, .1); border: 1px solid rgba(182, 240, 60, .35); }
 
   @media (max-width: 1100px) {
     .stats { grid-template-columns: repeat(2, 1fr); }
@@ -785,10 +794,54 @@ function renderPhone() {
           <li><b>Add it to your home screen</b> so it opens like an app. iPhone (Safari): Share → <b>Add to Home Screen</b>. Android (Chrome): ⋮ → <b>Add to Home screen</b>.</li>
           <li>If the phone can't connect: Windows may have asked whether to let <b>Python</b> use the network. Allow it on <b>Private networks</b> (Windows Security → Firewall → Allow an app).</li>
         </ol>
-        ${p.tailscale.length ? "" : `<div class="faint">${tsHelp}</div>`}
         <div class="row"><button class="sm" data-act="phone-new-pin">New PIN (signs phones out)</button></div>
       </div>
+    </div>
+    <div class="ts-box">
+      <div class="row" style="justify-content:space-between"><b>Away from home (Tailscale)</b><button class="sm ghost" data-act="ts-recheck">Check again</button></div>
+      <div class="faint" style="margin:4px 0 10px">Tailscale links your own devices into a private network over the internet, so your phone can reach this PC from anywhere (mobile data, a friend's Wi-Fi). Only devices signed in to your Tailscale account can see each other, and nothing is opened to the internet.</div>
+      <div id="ts-check"></div>
     </div>`;
+  renderTailscale();
+  if (!TS) loadTailscale();
+}
+
+// Tailscale checklist: what's done and what's still missing for phone access away from home.
+let TS = null;
+async function loadTailscale(fresh) {
+  try { TS = await api("/api/phone/tailscale" + (fresh ? "?fresh=1" : "")); } catch (e) { TS = { error: e.message }; }
+  renderTailscale();
+}
+function renderTailscale() {
+  const el = $("#ts-check"); if (!el) return;
+  if (!TS) { el.innerHTML = `<div class="faint">Checking Tailscale on this PC…</div>`; return; }
+  if (TS.error) { el.innerHTML = `<div class="faint">${esc(TS.error)}</div>`; return; }
+  const row = (state, title, detail) => `<li class="ts-${state}"><span class="ts-ic">${{ ok: "✓", bad: "✗", warn: "!", wait: "–" }[state]}</span>
+    <div><b>${title}</b>${detail ? `<div class="faint">${detail}</div>` : ""}</div></li>`;
+  const rows = [];
+  rows.push(TS.installed ? row("ok", "Tailscale is installed on this PC")
+    : row("bad", "Install Tailscale on this PC", `Get it from <a href="https://tailscale.com/download" target="_blank">tailscale.com/download</a>, then sign in.`));
+  if (TS.installed) rows.push(TS.signed_in
+    ? row("ok", `Signed in on this PC${TS.account ? " as " + esc(TS.account) : ""}`, `This PC's Tailscale address is <code>${esc(TS.ip)}</code>.`)
+    : row("bad", TS.state === "Stopped" ? "Tailscale is switched off on this PC" : "Sign in to Tailscale on this PC",
+          TS.state === "Stopped" ? "Click the Tailscale icon by the clock and choose <b>Connect</b>."
+            : "Click the Tailscale icon by the clock (you may need the ^ arrow) and choose <b>Log in</b>. Use the <b>same account</b> as on your phone."));
+  else rows.push(row("wait", "Sign in on this PC"));
+  const ph = TS.phones || [], on = ph.find(x => x.online);
+  rows.push(!TS.signed_in ? row("wait", "Your phone on your Tailscale", "Checked once this PC is signed in.")
+    : on ? row("ok", `Phone found: ${esc(on.name)}`, "It's connected to your Tailscale.")
+    : ph.length ? row("warn", `${esc(ph[0].name)} is on your Tailscale but not connected`, "Open the Tailscale app on your phone and switch it on.")
+    : row("bad", "No phone on your Tailscale yet", "Install the Tailscale app on your phone (App Store or Google Play) and sign in with the same account as this PC."));
+  const fw = TS.firewall;
+  rows.push(!TS.signed_in || !fw ? row("wait", "Windows Firewall lets your phone in", "Checked once this PC is signed in.")
+    : fw.state === "ok" ? row("ok", "Windows Firewall lets your phone in", esc(fw.note))
+    : fw.state === "blocked" ? row("bad", "Windows Firewall is blocking it", `${esc(fw.note)} To fix: Start → type <b>Allow an app through Windows Firewall</b> → <b>Change settings</b> → find <b>pythonw.exe</b> (or Python) → tick <b>${esc(fw.profile || "Private")}</b> → <b>OK</b>. Then press Check again.`)
+    : row("warn", "Couldn't check Windows Firewall", esc(fw.note) + " If the phone can't connect, allow Python on Private networks (Start → Allow an app through Windows Firewall)."));
+  const ready = TS.signed_in && on && fw && fw.state === "ok";
+  el.innerHTML = `<ol class="ts-list">${rows.join("")}</ol>` + (ready
+    ? `<div class="ts-ready"><b>All set.</b> Click <b>Tailscale (anywhere)</b> at the top of this card and scan that QR code, then add it to your home screen: it works at home and away. To test, turn Wi-Fi off on your phone and open it.
+        <div class="row" style="margin-top:8px"><button class="sm lime" data-act="ts-show-qr">Show the Tailscale QR code</button></div></div>`
+    : `<div class="faint" style="margin-top:8px">Your PC also has to be on (not asleep) with Loot Radar running.</div>`);
 }
 async function setPhone(body, okMsg) {
   try { PHONE = await api("/api/phone/config", body); renderPhone(); if (okMsg) toast(okMsg, "ok"); }
@@ -1363,6 +1416,8 @@ document.addEventListener("click", async e => {
   }
   const b = e.target.closest("button"); if (!b) return;
   if (b.dataset.phoneAddr) { PHONE_ADDR = b.dataset.phoneAddr; renderPhone(); return; }
+  if (b.dataset.act === "ts-recheck") { TS = null; renderTailscale(); await loadPhone(); await loadTailscale(true); return; }
+  if (b.dataset.act === "ts-show-qr") { if (TS && TS.ip) PHONE_ADDR = TS.ip; renderPhone(); $("#phone-panel").scrollIntoView({ behavior: "smooth" }); return; }
   if (b.dataset.act === "phone-new-pin") {
     if (confirm("Make a new PIN? Phones that are signed in will need to enter the new one.")) { PHONE_V++; setPhone({ new_pin: true }, "New PIN made. Phones are signed out."); }
     return;

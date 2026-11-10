@@ -106,6 +106,12 @@ def api_phone_config():
     return api_phone()
 
 
+@app.get("/api/phone/tailscale")
+def api_phone_tailscale():
+    """The Tailscale checklist for "away from home" (PC only, like everything under /api/phone)."""
+    return jsonify({"ok": True, **phone.tailscale_status(force=request.args.get("fresh") == "1")})
+
+
 @app.get("/api/phone/qr.png")
 def api_phone_qr():
     addr = request.args.get("addr", "")

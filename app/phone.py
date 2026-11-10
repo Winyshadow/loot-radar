@@ -14,8 +14,13 @@ from __future__ import annotations
 
 import io
 import ipaddress
+import json
+import os
 import secrets
+import shutil
 import socket
+import subprocess
+import sys
 import threading
 import time
 
@@ -126,6 +131,88 @@ def addresses() -> dict:
     elif primary and ipaddress.ip_address(primary).is_private and ipaddress.ip_address(primary) not in TAILSCALE_NET:
         wifi.insert(0, primary)
     return {"wifi": wifi, "tailscale": tailscale}
+
+
+# ------------------------------------------------------------------ Tailscale checklist
+_ts_cache: dict = {"at": 0.0, "value": None}
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
+def _tailscale_exe() -> str:
+    for root in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)"), os.environ.get("LOCALAPPDATA")):
+        if root:
+            p = os.path.join(root, "Tailscale", "tailscale.exe")
+            if os.path.exists(p):
+                return p
+    return shutil.which("tailscale") or ""
+
+
+def _firewall_check() -> dict:
+    """Does Windows Firewall let this Loot Radar (its real python program) in on the Tailscale
+    network? Only reads the rules; never changes them."""
+    try:
+        import psutil
+        exe = psutil.Process().exe()
+    except Exception:
+        exe = sys.executable
+    script = r"""
+$ErrorActionPreference = 'SilentlyContinue'
+$cat = (Get-NetConnectionProfile -InterfaceAlias 'Tailscale').NetworkCategory
+$prof = switch ("$cat") { 'Private' {'Private'} 'Public' {'Public'} 'DomainAuthenticated' {'Domain'} default {''} }
+$on = if ($prof) { [bool](Get-NetFirewallProfile -Name $prof).Enabled } else { $null }
+$exe = $env:LR_EXE.ToLower()
+$rules = Get-NetFirewallApplicationFilter | Where-Object { $_.Program -and ([Environment]::ExpandEnvironmentVariables($_.Program)).ToLower() -eq $exe } |
+  Get-NetFirewallRule | Where-Object { $_.Direction -eq 'Inbound' -and $_.Enabled -eq 'True' } |
+  ForEach-Object { @{ action = "$($_.Action)"; profile = "$($_.Profile)" } }
+@{ category = "$cat"; profile = $prof; firewall_on = $on; rules = @($rules) } | ConvertTo-Json -Depth 4 -Compress
+"""
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                           capture_output=True, text=True, timeout=25, creationflags=NO_WINDOW,
+                           env={**os.environ, "LR_EXE": exe})
+        data = json.loads(r.stdout.strip() or "{}")
+    except Exception as exc:
+        return {"state": "unknown", "note": f"Couldn't read the firewall settings ({exc.__class__.__name__})."}
+    prof, rules = data.get("profile") or "", data.get("rules") or []
+    if isinstance(rules, dict):
+        rules = [rules]
+    if not prof:
+        return {"state": "unknown", "note": "Tailscale's network isn't up yet, so this can't be checked."}
+    if data.get("firewall_on") is False:
+        return {"state": "ok", "profile": prof, "note": f"Windows Firewall is off for {prof} networks."}
+    covers = lambda r: r.get("profile") in ("Any", "") or prof in r.get("profile", "")
+    if any(r.get("action") == "Block" and covers(r) for r in rules):
+        return {"state": "blocked", "profile": prof, "note": f"A firewall rule blocks Python on {prof} networks."}
+    if any(r.get("action") == "Allow" and covers(r) for r in rules):
+        return {"state": "ok", "profile": prof, "note": f"Python is allowed on {prof} networks."}
+    return {"state": "blocked", "profile": prof, "note": f"Python isn't allowed on {prof} networks yet (Tailscale counts as {prof})."}
+
+
+def tailscale_status(force: bool = False) -> dict:
+    """Everything the Phone access card's Tailscale checklist shows (cached 20 s)."""
+    if not force and _ts_cache["value"] and time.time() - _ts_cache["at"] < 20:
+        return _ts_cache["value"]
+    out = {"installed": False, "signed_in": False, "state": "", "ip": "", "account": "", "phones": [], "firewall": None}
+    exe = _tailscale_exe()
+    if exe:
+        out["installed"] = True
+        try:
+            r = subprocess.run([exe, "status", "--json"], capture_output=True, text=True, timeout=10, creationflags=NO_WINDOW)
+            st = json.loads(r.stdout or "{}")
+        except Exception:
+            st = {}
+        out["state"] = st.get("BackendState") or ""
+        ips = [ip for ip in ((st.get("Self") or {}).get("TailscaleIPs") or []) if "." in ip]
+        out["signed_in"] = out["state"] == "Running" and bool(ips)
+        out["ip"] = ips[0] if ips else ""
+        out["account"] = (st.get("CurrentTailnet") or {}).get("Name") or ""
+        for peer in (st.get("Peer") or {}).values():
+            if str(peer.get("OS", "")).lower() in ("ios", "android"):
+                out["phones"].append({"name": peer.get("HostName") or "phone", "online": bool(peer.get("Online"))})
+        if out["signed_in"]:
+            out["firewall"] = _firewall_check()
+    _ts_cache.update(at=time.time(), value=out)
+    return out
 
 
 def url_for(addr: str) -> str:

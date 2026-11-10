@@ -6,6 +6,12 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.5.1 (2026-11-10)
+
+- Phone access now has an **Away from home (Tailscale) checklist** that checks your PC and shows ✓ or ✗ for each step, with the fix next to anything missing: Tailscale installed, signed in on this PC (and its 100.x address), your phone found on your Tailscale, and Windows Firewall letting your phone in. A short note explains what Tailscale does. Press **Check again** after fixing something.
+- The firewall check catches a common snag: Python allowed on "Public" networks only, while Tailscale counts as "Private". It only reads the firewall settings and never changes them.
+- When everything is ✓, **Show the Tailscale QR code** switches the QR code to the address that works at home and away.
+
 ## 1.5.0 (2026-11-10)
 
 - New **bottom dock**: when you scroll down and the top menu goes out of view, the same menu slides up at the bottom of the window (Overview, Browse, Library, Activity, Settings), with one status chip ("All OK" or "1 issue"). Scroll back up and it slides away. You never lose the menu again.
