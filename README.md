@@ -16,7 +16,7 @@ Loot Radar reads your Steam library and the games installed from your other laun
 | Any Twitch drop | **Browse drops** lists every campaign on Twitch, so you can add events and games that aren't on Steam (e.g. ExileCon) |
 | Discord alerts | New drop campaigns (rewards, watch time, end date, account-link warning) and official Steam announcements |
 | Auto-mine | Collects drops in the background with the built-in drop miner |
-| Muted mode | Opens a real live stream, muted and at the lowest quality, and switches channel when it ends |
+| Muted mode | Opens a real live stream, muted and at the lowest quality, in its own window of your default browser (Brave, Chrome, Edge or Vivaldi; otherwise Edge), and switches channel when it ends |
 | Overview | Totals, the drop being mined right now with a live countdown, the channel and your channel points, collapsible running drops per game, and a completed-drops list you can clear |
 | System tray | Runs quietly next to the clock: double-click the icon to open the dashboard, right-click to restart or quit |
 | Start with Windows | Optional tick box in Settings → Preferences: Loot Radar starts in the tray when you sign in |

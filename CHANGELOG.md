@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.6.3 (2026-11-11)
+
+- Muted mode and the miner's Twitch sign-in now open in **your default browser** (Brave, Chrome, Edge or Vivaldi) instead of always Edge. If your default is something else (like Firefox), it still uses Edge.
+- It's still Loot Radar's own window with its own profile, kept apart from your everyday browser, so Loot Radar can mute it, set the lowest quality and switch streams. The first time it opens in a new browser, sign in to Twitch there once; it remembers you after that.
+
 ## 1.6.2 (2026-11-11)
 
 - **Tidier Settings.** Everything is now in five sections you open and close with a click: **Updates**, **Setup** (drop miner, Steam, Discord), **Game deals**, **Phone access** and **Preferences**. Each header shows its status, so you can see what's done without opening it: "Up to date", "Miner ✓ · Steam ✓ · Discord ✓", "On · 16 on sale", "On" / "Off".

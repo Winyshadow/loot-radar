@@ -1,7 +1,9 @@
-"""Loot Radar's own Edge window: Twitch sign-in for the miner, and muted-stream mode.
+"""Loot Radar's own browser window: Twitch sign-in for the miner, and muted-stream mode.
 
-It starts your installed Microsoft Edge (or Chrome) as a completely normal window, with its own
-profile in data/browser-profile, so you sign in to Twitch there once. Loot Radar never automates
+It starts your default browser when that's a Chrome-type one (Brave, Chrome, Edge, Vivaldi),
+otherwise Microsoft Edge, as a completely normal window with its own Loot Radar profile in
+data/browser-profile (data/browser-profile-brave etc. for other browsers), so you sign in to
+Twitch there once. Your own browser profile is never touched. Loot Radar never automates
 the page itself (Twitch's login page refuses "automated" browsers). It only talks to the browser
 over its DevTools port, the same way Twitch Drops Miner does, to:
   * read the Twitch login cookie after you sign in, and
@@ -107,11 +109,50 @@ class BrowserGone(Exception):
     """The browser window was closed (by you) or crashed."""
 
 
+# Chrome-type browsers that can run a separate window we talk to over DevTools.
+CHROMIUM_BROWSERS = {"brave.exe": "Brave", "chrome.exe": "Chrome", "msedge.exe": "Edge",
+                     "vivaldi.exe": "Vivaldi", "chromium.exe": "Chromium"}
+
+
+def default_browser() -> tuple[str, str] | None:
+    """(exe path, name) of the Windows default browser, if it's one from CHROMIUM_BROWSERS."""
+    try:
+        import winreg
+    except ImportError:
+        return None
+    base = r"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https"
+    progid = ""
+    for sub in (r"\UserChoiceLatest\ProgId", r"\UserChoice"):
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, base + sub) as key:
+                progid = winreg.QueryValueEx(key, "ProgId")[0]
+        except OSError:
+            continue
+        if progid:
+            break
+    if not progid:
+        return None
+    try:
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, progid + r"\shell\open\command") as key:
+            command = winreg.QueryValueEx(key, "")[0].strip()
+    except OSError:
+        return None
+    if command.startswith('"'):
+        exe = command[1:].split('"', 1)[0]
+    else:
+        exe = command[: command.lower().find(".exe") + 4] if ".exe" in command.lower() else ""
+    name = CHROMIUM_BROWSERS.get(os.path.basename(exe).lower())
+    return (exe, name) if name and os.path.exists(exe) else None
+
+
 class PlainBrowser:
-    """A normal Edge/Chrome window we can talk to over its DevTools port without touching pages."""
+    """A normal browser window (Brave/Chrome/Edge…) we can talk to over its DevTools port without
+    touching pages. It always uses its own Loot Radar profile, never your everyday one."""
 
     def __init__(self, profile_dir: Path):
+        self.base_profile = profile_dir
         self.profile_dir = profile_dir
+        self.name = ""
         self.proc: subprocess.Popen | None = None
         self.port = 0
         self.ws = None
@@ -119,31 +160,42 @@ class PlainBrowser:
 
     # -- start / stop ------------------------------------------------------------------
     @staticmethod
-    def find_exe() -> str:
+    def find_exe() -> tuple[str, str]:
+        """(exe path, name): your default browser if it's Chrome-type, otherwise Edge or Chrome."""
         override = os.environ.get("LOOTRADAR_BROWSER")
         if override:
-            return override
+            return override, CHROMIUM_BROWSERS.get(os.path.basename(override).lower(), "browser")
+        found = default_browser()
+        if found:
+            return found
         roots = [os.environ.get(k) for k in ("PROGRAMFILES(X86)", "PROGRAMFILES", "LOCALAPPDATA")]
         for rel in (r"Microsoft\Edge\Application\msedge.exe", r"Google\Chrome\Application\chrome.exe"):
             for root in roots:
                 if root and os.path.exists(os.path.join(root, rel)):
-                    return os.path.join(root, rel)
+                    exe = os.path.join(root, rel)
+                    return exe, CHROMIUM_BROWSERS[os.path.basename(exe)]
         for name in ("msedge", "google-chrome", "chrome", "chromium"):
-            found = shutil.which(name)
-            if found:
-                return found
-        raise RuntimeError("Couldn't find Microsoft Edge or Google Chrome.")
+            exe = shutil.which(name)
+            if exe:
+                return exe, CHROMIUM_BROWSERS.get(os.path.basename(exe).lower(), "Chrome")
+        raise RuntimeError("Couldn't find Brave, Microsoft Edge or Google Chrome.")
 
     def start(self, url: str = "about:blank") -> None:
         import websocket  # websocket-client
 
+        exe, self.name = self.find_exe()
+        # Edge keeps the original folder (and your existing sign-in); other browsers get their own,
+        # because browsers can't safely share a profile folder.
+        self.profile_dir = (self.base_profile if self.name == "Edge"
+                            else self.base_profile.with_name(f"{self.base_profile.name}-{self.name.lower()}"))
         self.kill_leftovers()
         self.profile_dir.mkdir(parents=True, exist_ok=True)
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             self.port = sock.getsockname()[1]
-        args = [self.find_exe(), f"--user-data-dir={self.profile_dir}",
+        args = [exe, f"--user-data-dir={self.profile_dir}",
                 f"--remote-debugging-port={self.port}", *BROWSER_ARGS, url]
+        store.log(f"Opening Loot Radar's own {self.name} window.")
         self.proc = subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         deadline = time.time() + 30
         while True:
@@ -182,12 +234,14 @@ class PlainBrowser:
         self.kill_leftovers()
 
     def kill_leftovers(self) -> None:
-        """Stop anything still running on our profile (e.g. after a crash or an older version)."""
+        """Stop anything still running on our profiles (e.g. after a crash or an older version).
+        The base path also matches browser-profile-brave etc., so a window left over from another
+        browser is closed too. Your everyday browser never has this path, so it's never touched."""
         try:
             import psutil
         except ImportError:
             return
-        marker = str(self.profile_dir).lower()
+        marker = str(self.base_profile).lower()
         for p in psutil.process_iter(["cmdline"]):
             try:
                 if marker in " ".join(p.info.get("cmdline") or []).lower():
@@ -349,6 +403,7 @@ class MutedWatcher:
                 if br.ws is None:
                     br.start()
                     channel, login_prompted = None, False
+                    self.status["browser"] = br.name
 
                 # Needs a Twitch sign-in in this window (one time).
                 cookies = br.twitch_cookies()
@@ -356,10 +411,13 @@ class MutedWatcher:
                     if not login_prompted or "twitch.tv" not in br.current_url():
                         br.navigate("https://www.twitch.tv/login")
                         login_prompted = True
-                        store.log("Sign in to Twitch in the Loot Radar window that just opened "
+                        store.log(f"Sign in to Twitch in the Loot Radar {br.name} window that just opened "
                                   "(one time only — the miner and muted mode both use it).")
-                    if not miner_cb:
-                        self._set("needs_login", "Sign in to Twitch in the Loot Radar window",
+                    if miner_cb:
+                        self.miner_login = {"state": "waiting",
+                                            "note": f"Sign in to Twitch in the Loot Radar {br.name} window"}
+                    else:
+                        self._set("needs_login", f"Sign in to Twitch in the Loot Radar {br.name} window",
                                   game=desired, channel=None)
                     continue
 

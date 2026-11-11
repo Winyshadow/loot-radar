@@ -1351,7 +1351,7 @@ function renderMuted() {
   let html = "";
   if (m.state === "watching") html = `<span class="tag live">Watching</span> <b>${esc(m.channel)}</b> for ${esc(m.game)} <a href="https://www.twitch.tv/${esc(m.channel)}" target="_blank">open</a>`;
   else if (m.state === "waiting") html = `<span class="tag soon">Waiting</span> ${esc(m.note)}. It checks again every 10 minutes.`;
-  else if (m.state === "needs_login") html = `<span class="tag warn">Sign in</span> A browser window opened — sign in to Twitch there once.`;
+  else if (m.state === "needs_login") html = `<span class="tag warn">Sign in</span> A Loot Radar ${esc(m.browser || "browser")} window opened. Sign in to Twitch there once; it remembers you after that.`;
   else if (m.state === "paused") html = `<span class="tag warn">Paused</span> You closed the muted window. <button class="sm" data-act="muted-resume">Resume muted mode</button>`;
   else if (m.state === "error") html = `<span class="tag warn">Error</span> ${esc(m.note)}`;
   else if (m.state === "off") html = `<span class="muted">Disabled.</span>`;
