@@ -20,6 +20,7 @@ Loot Radar reads your Steam library and the games installed from your other laun
 | Overview | Totals, the drop being mined right now with a live countdown, the channel and your channel points, collapsible running drops per game, and a completed-drops list you can clear |
 | System tray | Runs quietly next to the clock: double-click the icon to open the dashboard, right-click to restart or quit |
 | Start with Windows | Optional tick box in Settings → Preferences: Loot Radar starts in the tray when you sign in |
+| Game deals | Optional (Settings → Game deals): watches your Steam wishlist for Steam sales and, with a free GG.deals key, the cheapest official store and key-shop prices; pings Discord on big discounts and all-time lows |
 | Phone access | Optional (Settings → Phone access): scan a QR code to see your drops on your phone, on home Wi-Fi or anywhere with Tailscale. PIN-protected; the phone never sees your keys or passwords |
 | Updates | Checks GitHub every 6 hours for new versions of Loot Radar and the miner; one click to update |
 | Memory guard | Restarts the miner if it ever uses too much memory |

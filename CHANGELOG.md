@@ -6,6 +6,17 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.6.0 (2026-11-11)
+
+- New **Game Deals**: Loot Radar now finds cheap games as well as free loot.
+  - Reads your **Steam wishlist** (it must be visible: Steam privacy → Game details: Public), or paste Steam store links to add games by hand.
+  - Checks every 6 hours (or **Check deals now**): the **Steam** price in your own currency, plus, with a free **GG.deals** key, the cheapest **official store** and the cheapest **key shop** across dozens of shops, with their all-time lows. Prices by GG.deals.
+  - New **Deals** tab: cover, Steam price (−% and the old price struck through), best official store, key shop, "Lowest ever" badges, links to Steam and to every price on GG.deals. Filters: All · On sale · Lowest ever. Upcoming games show "Not out yet".
+  - **Discord pings** for deals: when Steam has a game at least 50% off (you choose the %), or a game drops to its lowest price ever. Goes to its own deals channel if you add one. The same deal is never pinged twice; a further drop pings again.
+  - **Key shops** (G2A, Kinguin, Eneba…) are shown separately and can be switched off. Each key-shop price reminds you to check the key's region: GLOBAL or ROW keys work in South Africa, region-locked EU/US/UK/Asia/RU keys may not.
+  - GG.deals has no South Africa region, so its prices show in US dollars (or EUR/GBP if you pick that region). Steam prices stay in rand.
+  - Settings → **Game deals**: on/off, GG.deals key, deals Discord channel, minimum %, region, key shops, **Send test ping**. Your phone sees deals but never the key or the channel link.
+
 ## 1.5.2 (2026-11-10)
 
 - The bottom dock stands out more: a glowing lime border, a darker background, and a short lime pulse when it slides in, so it no longer blends into the page behind it. (No pulse on phones, where it's the always-on tab bar, or if Windows is set to reduce animations.)

@@ -17,6 +17,7 @@ from flask import Flask, jsonify, request, send_from_directory
 
 import autostart
 import checks
+import deals
 import memguard
 import minerctl
 import updates
@@ -280,9 +281,24 @@ def api_settings():
         store.log("Loot Radar will now start when you sign in to Windows." if data["start_with_windows"]
                   else "Loot Radar will no longer start with Windows.")
     cfg = store.load_config()
-    for key in ("steam_api_key", "discord_webhook", "miner_url", "miner_password", "news_mode"):
+    for key in ("steam_api_key", "discord_webhook", "miner_url", "miner_password", "news_mode",
+                "ggdeals_key", "deals_webhook"):
         if key in data:
             cfg[key] = str(data[key]).strip()
+    if "deals_region" in data:
+        r = str(data["deals_region"]).strip().lower()
+        cfg["deals_region"] = r if r in deals.REGIONS else ""
+    if "deals_min_discount" in data:
+        try:
+            cfg["deals_min_discount"] = min(95, max(5, int(data["deals_min_discount"])))
+        except (TypeError, ValueError):
+            pass
+    for key in ("deals_enabled", "deals_keyshops"):
+        if key in data:
+            cfg[key] = bool(data[key])
+    if cfg.get("deals_webhook") and "discord.com/api/webhooks/" not in cfg["deals_webhook"] \
+            and "discordapp.com/api/webhooks/" not in cfg["deals_webhook"]:
+        return _err("The deals channel link doesn't look like a Discord webhook (it should contain discord.com/api/webhooks/).")
     for key, low in (("check_minutes", 5), ("news_check_hours", 1), ("miner_memory_limit_mb", 0)):
         if key in data:
             try:
@@ -382,6 +398,50 @@ def api_streamers():
         except Exception as exc:  # network trouble or Twitch changed something
             return _err(f"Couldn't load streamers from Twitch: {exc}", 502)
     return jsonify({"ok": True, "streamers": cached[1]})
+
+
+@app.get("/api/deals")
+def api_deals():
+    """Your wishlist deals, as saved by the last check (deals.py)."""
+    state = store.load_state()
+    return jsonify({"ok": True, **(state.get("deals") or {"rows": [], "updated": 0}),
+                    "checking": deals._lock.locked()})
+
+
+@app.post("/api/deals/check")
+def api_deals_check():
+    if not store.load_config().get("deals_enabled"):
+        return _err("Switch Deals on in Settings first.")
+    _bg(deals.check, True)
+    return jsonify({"ok": True})
+
+
+@app.post("/api/deals/test")
+def api_deals_test():
+    cfg = store.load_config()
+    if not (cfg.get("deals_webhook") or cfg.get("discord_webhook")):
+        return _err("Add a deals Discord channel link (or the main Discord link) first.")
+    if not deals.test_ping():
+        return _err("Discord didn't accept the message. Check the channel link.")
+    return jsonify({"ok": True})
+
+
+@app.post("/api/deals/watch")
+def api_deals_watch():
+    """Add or remove a game by Steam store link or app ID (covers a hidden or empty wishlist)."""
+    data = request.get_json(force=True) or {}
+    appid = deals.appid_from(data.get("game", ""))
+    if not appid:
+        return _err("Paste a Steam store link (store.steampowered.com/app/…) or an app ID.")
+    extra = [int(x) for x in store.load_config().get("deals_extra") or []]
+    if data.get("remove"):
+        extra = [x for x in extra if x != appid]
+    elif appid not in extra:
+        extra.append(appid)
+    store.update_config(deals_extra=extra)
+    if store.load_config().get("deals_enabled"):
+        _bg(deals.check, True)
+    return jsonify({"ok": True, "appid": appid})
 
 
 @app.get("/api/twitch-drops")
@@ -609,6 +669,8 @@ def scheduler():
             updates.check()  # only actually checks GitHub every 6 hours
             if os.name == "nt" and time.time() - (store.load_state().get("pc_scanned") or 0) > 6 * 3600:
                 checks.scan_pc()
+            if deals.due():  # wishlist deals every 6 hours, in the background (it makes a few web calls)
+                _bg(deals.check)
             memguard.check()
         except Exception as exc:  # never let the timer die
             store.log(f"Check failed: {exc}", "error")

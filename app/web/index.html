@@ -307,6 +307,22 @@
   .remote .pc-only { display: none !important; }
   .phone-only { display: none; } .remote .phone-only { display: flex; }
   @media (max-width: 760px) { .phone-grid { grid-template-columns: 1fr; } .qr { margin: 0 auto; } }
+  .deal-head, .deal { display: grid; grid-template-columns: 150px minmax(0, 1fr) 170px 170px 170px 150px; gap: 14px; align-items: center; padding: 10px 18px; }
+  .deal-head { font-size: 11px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .6px; border-bottom: 1px solid var(--line); }
+  .deal + .deal { border-top: 1px solid var(--line); }
+  .deal img.cover { width: 150px; height: 56px; object-fit: cover; border-radius: 8px; display: block; }
+  .deal .price b { font-size: 15px; } .deal .price s { font-size: 12px; margin-left: 4px; }
+  .deal .acts { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+  .deal .acts a { text-align: center; font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 99px; border: 1px solid var(--line2); color: var(--text); }
+  .deal .acts a:hover { text-decoration: none; border-color: rgba(182, 240, 60, .55); }
+  .deal .lbl { display: none; font-size: 11px; color: var(--faint); }
+  .tag.key { background: rgba(169, 137, 255, .14); color: var(--violet); }
+  @media (max-width: 1100px) { .deal-head { display: none; } .deal { grid-template-columns: 120px repeat(3, minmax(0, 1fr)); row-gap: 8px; }
+    .deal img.cover { width: 120px; height: 45px; grid-row: span 2; align-self: start; }
+    .deal .nm { grid-column: 2 / -1; } .deal .lbl { display: block; }
+    .deal .acts { flex-direction: row; grid-column: 2 / -1; } }
+  @media (max-width: 760px) { .deal { grid-template-columns: 1fr 1fr; } .deal img.cover { width: 100%; height: auto; aspect-ratio: 460 / 215; grid-column: 1 / -1; grid-row: auto; }
+    .deal .nm, .deal .acts { grid-column: 1 / -1; } }
   .ts-box { margin-top: 18px; padding: 14px 16px; border-radius: var(--r-md); background: rgba(4, 20, 30, .45); border: 1px solid var(--line); }
   .ts-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
   .ts-list li { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; }
@@ -373,6 +389,7 @@
       <a href="#/overview" data-p="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l6-6"/></svg>Overview</a>
       <a href="#/browse" data-p="browse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M12 8c-2-4-6-4-6-1.5S10 8 12 8zm0 0c2-4 6-4 6-1.5S14 8 12 8z"/></svg>Browse drops</a>
       <a href="#/library" data-p="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9h4M8 7v4M15 10h.01M18 8h.01"/><path d="M7 4h10a5 5 0 015 5v3a5 5 0 01-9 3h-2a5 5 0 01-9-3V9a5 5 0 015-5z"/></svg>Library</a>
+      <a href="#/deals" data-p="deals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L3 13V3h10l7.6 7.6a2 2 0 010 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Deals</a>
       <a href="#/activity" data-p="activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>Activity</a>
       <a href="#/settings" data-p="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>Settings<span class="badge" id="setup-badge" style="display:none">!</span></a>
     </div>
@@ -585,6 +602,31 @@
     </div>
   </section>
 
+  <!-- ===================== DEALS -->
+  <section class="page" id="p-deals">
+    <div class="head">
+      <h1>Game Deals</h1>
+      <span class="pillbox" id="deals-sub"></span>
+      <button class="sm" id="btn-deals-check">Check deals now</button>
+      <div class="sub">Your Steam wishlist (and games you add) is checked every 6 hours on Steam and, with a free GG.deals key, on dozens of other stores and key shops. Good deals are pinged to Discord. Prices by <a href="https://gg.deals/" target="_blank">GG.deals</a>.</div>
+    </div>
+    <div class="banner" id="deals-banner" style="display:none"></div>
+    <div class="panel">
+      <div class="phead">
+        <div class="filters">
+          <button class="pill sm on" data-dealf="all">All</button>
+          <button class="pill sm" data-dealf="sale">On sale</button>
+          <button class="pill sm" data-dealf="low">Lowest ever</button>
+        </div>
+        <div class="right row" style="gap:6px">
+          <input id="deal-add" placeholder="Paste a Steam store link to add a game" style="width:290px">
+          <button class="sm" id="btn-deal-add">Add</button>
+        </div>
+      </div>
+      <div id="deals"></div>
+    </div>
+  </section>
+
   <!-- ===================== ACTIVITY -->
   <section class="page" id="p-activity">
     <div class="head">
@@ -665,6 +707,31 @@
       <div id="phone-body" style="padding:6px 18px 18px"></div>
     </div>
 
+    <div class="panel pc-only" id="deals-panel">
+      <div class="phead"><h2>Game deals</h2><span class="muted">wishlist discounts on Steam and key sites</span>
+        <div class="right"><label class="check-line"><input type="checkbox" id="s-deals"> Watch my wishlist for deals</label></div></div>
+      <div class="grid2">
+        <div class="field"><label>GG.deals API key (free)</label><input id="f-gg" autocomplete="off" placeholder="Paste your GG.deals key">
+          <div class="hint">Adds prices from dozens of stores and key shops. To get one: sign in on <a href="https://gg.deals/" target="_blank">gg.deals</a>, then follow "get your API key" on <a href="https://gg.deals/api/" target="_blank">gg.deals/api</a>. Without it, only Steam prices are checked.</div></div>
+        <div class="field"><label>Deals Discord channel (webhook link)</label><input id="f-deals-hook" autocomplete="off" placeholder="https://discord.com/api/webhooks/…">
+          <div class="hint">Make a channel for deals, then: ⚙️ Edit Channel → Integrations → Webhooks → New Webhook → Copy Webhook URL. Leave empty to use your main Loot Radar channel.</div></div>
+        <div class="field"><label>Ping me when Steam has it at least … % off</label><input id="f-deals-min" type="number" min="5" max="95" step="5">
+          <div class="hint">It also pings when a game drops to its lowest price ever.</div></div>
+        <div class="field"><label>GG.deals price region</label>
+          <select id="f-deals-region">
+            <option value="">GG.deals default</option><option value="us">United States (USD)</option><option value="eu">Europe (EUR)</option>
+            <option value="gb">United Kingdom (GBP)</option><option value="au">Australia (AUD)</option><option value="ca">Canada (CAD)</option>
+            <option value="br">Brazil (BRL)</option><option value="pl">Poland (PLN)</option><option value="de">Germany</option><option value="fr">France</option>
+            <option value="nl">Netherlands</option><option value="se">Sweden</option><option value="dk">Denmark</option><option value="no">Norway</option><option value="ch">Switzerland</option>
+          </select>
+          <div class="hint">Which country's prices GG.deals compares (it has no South Africa option, so its prices show in that region's currency). Steam prices always show in rand.</div></div>
+      </div>
+      <div style="padding:0 18px 16px; display:grid; gap:10px">
+        <label class="check-line"><input type="checkbox" id="s-deals-keyshops"> Show key-shop prices too: resellers like G2A, Kinguin and Eneba. Usually cheaper, but they're not official stores, and some keys are region-locked: in South Africa, buy GLOBAL or ROW keys.</label>
+        <div class="row"><button class="lime" id="btn-deals-save">Save</button><button id="btn-deals-test">Send test ping</button></div>
+      </div>
+    </div>
+
     <div class="panel" id="updates-panel">
       <div class="phead"><h2>Updates</h2><span class="muted" id="upd-checked"></span>
         <div class="right"><button class="sm" id="btn-upd-check">Check for updates</button></div></div>
@@ -736,7 +803,7 @@ function img(src, cls, alt = "") { return src ? `<img class="${cls}" loading="la
 function dot(id, cls, text, title = "") { const c = $(id); c.className = "dot " + cls; c.innerHTML = `<i></i>${esc(text)}`; c.title = title; }
 
 /* ---------------- routing */
-const PAGES = ["overview", "browse", "library", "activity", "settings"];
+const PAGES = ["overview", "browse", "library", "deals", "activity", "settings"];
 function route() {
   let p = (location.hash.match(/^#\/(\w+)/) || [])[1];
   if (!PAGES.includes(p)) p = "overview";
@@ -744,6 +811,7 @@ function route() {
   $$("#tabs a, #dock a").forEach(a => a.classList.toggle("on", a.dataset.p === p));
   if (p === "browse" && !ALL) loadAllDrops();
   if (p === "settings") loadPhone();
+  if (p === "deals") loadDeals();
   window.scrollTo({ top: 0 });
 }
 window.addEventListener("hashchange", route);
@@ -764,6 +832,69 @@ window.addEventListener("hashchange", route);
   else dock.classList.add("show");
   $("#dock-status").addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 })();
+/* ---------------- game deals (wishlist discounts) */
+let DEALS = null, dealFilter = "all", dealsPoll = null;
+async function loadDeals() {
+  if (!S) { setTimeout(loadDeals, 600); return; }  // settings not loaded yet (Deals opened first)
+  try { DEALS = await api("/api/deals"); } catch (e) { DEALS = { error: e.message, rows: [] }; }
+  renderDeals();
+  clearTimeout(dealsPoll);
+  if (DEALS.checking) dealsPoll = setTimeout(loadDeals, 3000);  // a check is running: refresh when it's done
+}
+function money(v, cur) {
+  if (v === null || v === undefined) return "—";
+  try { return new Intl.NumberFormat(undefined, { style: "currency", currency: cur || "USD" }).format(v); }
+  catch { return (cur ? cur + " " : "") + Number(v).toFixed(2); }
+}
+function renderDeals() {
+  const d = DEALS || { rows: [] }, st = (S && S.settings) || {}, rows = d.rows || [];
+  const keyshops = st.deals_keyshops !== false;
+  $("#deals-sub").innerHTML = d.updated ? `<b>${rows.length}</b> games · ${rows.filter(r => r.on_sale).length} on sale · checked ${esc(ago(d.updated))}` : "not checked yet";
+  $("#btn-deals-check").disabled = !!d.checking; $("#btn-deals-check").textContent = d.checking ? "Checking…" : "Check deals now";
+  const notes = [];
+  if (!st.deals_enabled) notes.push(`<b>Deals are off.</b> <span class="muted">Switch them on in <a href="#/settings">Settings → Game deals</a>${S && S.remote ? " on your PC" : ""}.</span>`);
+  else {
+    if (!d.has_gg && d.updated) notes.push(`<b>Only Steam prices for now.</b> <span class="muted">Add a free GG.deals key in Settings → Game deals to compare other stores and key shops too.</span>`);
+    if (d.updated && !st.steam_id) notes.push(`<b>Steam isn't connected,</b> <span class="muted">so your wishlist can't be read. Connect Steam in Settings, or add games with the box below.</span>`);
+    else if (d.updated && !d.wishlist_count) notes.push(`<b>Your Steam wishlist came back empty.</b> <span class="muted">If it has games on it, make it visible: Steam → your profile → Edit Profile → Privacy Settings → set <b>Game details</b> to Public. Or add games with the box below.</span>`);
+    (d.errors || []).forEach(e => notes.push(`<b>⚠️</b> <span class="muted">${esc(e)}</span>`));
+    if (keyshops && d.has_gg) notes.push(`<b>⚠️ Key shops: check the key's region before buying.</b> <span class="muted">Keys marked <b>GLOBAL</b> or <b>ROW</b> (Rest of World) work in South Africa. EU-, US-, UK-, Asia- or RU/CIS-only keys may not activate on your Steam account. <b>All prices</b> opens GG.deals, which lists every offer with its region. Official stores (Steam, GOG, Humble, Fanatical…) are the safe choice.</span>`);
+  }
+  const bn = $("#deals-banner");
+  bn.style.display = notes.length ? "" : "none"; bn.innerHTML = notes.map(n => `<div>${n}</div>`).join("");
+  bn.style.flexDirection = "column"; bn.style.alignItems = "flex-start";
+  let list = rows;
+  if (dealFilter === "sale") list = rows.filter(r => r.on_sale);
+  if (dealFilter === "low") list = rows.filter(r => { const g = r.gg || {}; return (g.retail != null && g.low_retail != null && g.retail <= g.low_retail) || (keyshops && g.keyshop != null && g.low_keyshop != null && g.keyshop <= g.low_keyshop); });
+  if (!list.length) {
+    $("#deals").innerHTML = `<div class="empty">${!st.deals_enabled ? "Switch deals on to start." : !d.updated ? (d.checking ? "Checking your wishlist…" : "Press <b>Check deals now</b>.") : rows.length ? "Nothing in this filter right now." : "No games to watch yet."}</div>`;
+    return;
+  }
+  const low = (cur, ever) => cur != null && ever != null && cur <= ever ? ' <span class="tag soon">Lowest ever</span>' : "";
+  $("#deals").innerHTML = `<div class="deal-head"><span></span><span>Game</span><span>Steam</span><span>Best official store</span><span>${keyshops ? "Key shop (reseller)" : ""}</span><span></span></div>` +
+    list.map(r => {
+      const s = r.steam || {}, g = r.gg || {};
+      const steamCell = s.price == null ? `<span class="faint">${r.free ? "Free to play" : r.soon ? "Not out yet" : "No Steam price yet"}</span>`
+        : `${s.discount ? `<span class="tag live">−${s.discount}%</span> ` : ""}<b>${esc(s.text || money(s.price, s.currency))}</b>${s.discount && s.initial_text ? `<s class="faint">${esc(s.initial_text)}</s>` : ""}`;
+      const storeCell = !d.has_gg ? `<span class="faint">needs a GG.deals key</span>` : g.retail == null ? `<span class="faint">—</span>`
+        : `<b>${money(g.retail, g.currency)}</b>${low(g.retail, g.low_retail)}<div class="faint" style="font-size:11px">lowest ever ${money(g.low_retail, g.currency)}</div>`;
+      const keyCell = !keyshops ? "" : !d.has_gg ? `<span class="faint">needs a GG.deals key</span>` : g.keyshop == null ? `<span class="faint">—</span>`
+        : `<b>${money(g.keyshop, g.currency)}</b> <span class="tag key">key shop</span>${low(g.keyshop, g.low_keyshop)}<div class="faint" style="font-size:11px">lowest ever ${money(g.low_keyshop, g.currency)}</div><div style="font-size:11px;color:var(--amber)" title="Buy GLOBAL or ROW keys: region-locked EU/US/UK/Asia/RU keys may not activate in South Africa">⚠️ check key region</div>`;
+      return `<div class="deal">
+        ${r.image ? `<img class="cover" loading="lazy" src="${esc(r.image)}" alt="" onerror="this.style.visibility='hidden'">` : `<span></span>`}
+        <div class="nm" style="min-width:0"><b>${esc(r.name)}</b><div class="faint" style="font-size:12px">${r.manual ? `Added by you · <a href="#" data-deal-remove="${r.appid}">remove</a>` : "On your wishlist"}${(r.why || []).length ? ' · <span style="color:var(--lime)">deal pinged</span>' : ""}</div></div>
+        <div class="price"><span class="lbl">Steam</span>${steamCell}</div>
+        <div class="price"><span class="lbl">Best official store</span>${storeCell}</div>
+        <div class="price">${keyshops ? `<span class="lbl">Key shop</span>` : ""}${keyCell}</div>
+        <div class="acts"><a href="${esc(r.store_url)}" target="_blank">Steam page</a>${r.gg_url ? `<a href="${esc(r.gg_url)}" target="_blank">All prices</a>` : ""}</div>
+      </div>`;
+    }).join("");
+}
+async function saveDeals(extra) {
+  await api("/api/settings", { deals_enabled: $("#s-deals").checked, ggdeals_key: $("#f-gg").value, deals_webhook: $("#f-deals-hook").value,
+    deals_min_discount: $("#f-deals-min").value, deals_region: $("#f-deals-region").value, deals_keyshops: $("#s-deals-keyshops").checked, ...(extra || {}) });
+}
+
 /* ---------------- phone access (Settings on the PC) */
 let PHONE = null, PHONE_ADDR = "", PHONE_V = 0;  // PHONE_V: new QR image after a new PIN
 async function loadPhone() {
@@ -1303,6 +1434,8 @@ function fillForms() {
   $("#s-auto-start").checked = st.auto_start_miner !== false; $("#s-auto-update").checked = !!st.auto_update_miner;
   $("#s-lib-alerts").checked = st.alert_library_drops !== false;
   $("#s-win-start").checked = !!st.start_with_windows;
+  $("#s-deals").checked = !!st.deals_enabled; $("#f-gg").value = st.ggdeals_key || ""; $("#f-deals-hook").value = st.deals_webhook || "";
+  $("#f-deals-min").value = st.deals_min_discount || 50; $("#f-deals-region").value = st.deals_region || ""; $("#s-deals-keyshops").checked = st.deals_keyshops !== false;
   if (!(st.steam_api_key && st.steam_id) && !st.steam_skipped) $("#help-steam").open = true;
   if (!st.discord_webhook && !st.discord_skipped) $("#help-discord").open = true;
   if (S.miner_status !== "ok") $("#help-miner").open = true;
@@ -1422,7 +1555,25 @@ document.addEventListener("click", async e => {
     $("#btn-expand").textContent = $$(".game").every(g => g.classList.contains("open")) ? "Collapse all" : "Expand all";
     runSig = ""; return;
   }
+  const rm = e.target.closest("[data-deal-remove]");
+  if (rm) {
+    e.preventDefault();
+    try { await api("/api/deals/watch", { game: rm.dataset.dealRemove, remove: true }); DEALS.rows = DEALS.rows.filter(r => String(r.appid) !== rm.dataset.dealRemove); renderDeals(); toast("Removed.", "ok"); }
+    catch (err) { toast(err.message, "bad"); }
+    return;
+  }
   const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.dealf) { dealFilter = b.dataset.dealf; $$("[data-dealf]").forEach(p => p.classList.toggle("on", p === b)); renderDeals(); return; }
+  if (["btn-deals-check", "btn-deal-add", "btn-deals-save", "btn-deals-test"].includes(b.id)) {
+    try {
+      if (b.id === "btn-deals-check") { await api("/api/deals/check", {}); toast("Checking your wishlist deals…", "ok"); }
+      else if (b.id === "btn-deal-add") { await api("/api/deals/watch", { game: $("#deal-add").value }); $("#deal-add").value = ""; toast("Added. Checking its prices…", "ok"); }
+      else if (b.id === "btn-deals-save") { await saveDeals(); S.settings.deals_enabled = $("#s-deals").checked; toast("Deal settings saved.", "ok"); if ($("#s-deals").checked) api("/api/deals/check", {}).catch(() => {}); }
+      else { await saveDeals(); await api("/api/deals/test", {}); toast("Test deal sent. Check your Discord channel.", "ok"); }
+      setTimeout(loadDeals, 600);
+    } catch (err) { toast(err.message, "bad"); }
+    return;
+  }
   if (b.dataset.phoneAddr) { PHONE_ADDR = b.dataset.phoneAddr; renderPhone(); return; }
   if (b.dataset.act === "ts-recheck") { TS = null; renderTailscale(); await loadPhone(); await loadTailscale(true); return; }
   if (b.dataset.act === "ts-show-qr") { if (TS && TS.ip) PHONE_ADDR = TS.ip; renderPhone(); $("#phone-panel").scrollIntoView({ behavior: "smooth" }); return; }
@@ -1506,6 +1657,14 @@ document.addEventListener("change", async e => {
           S.settings.priority_auto_sort = e.target.checked; runSig = ""; renderRunning();
           toast(e.target.checked ? "Always sorted by ending soonest." : "Your own order is kept.", "ok"); }
     catch (err) { toast(err.message, "bad"); }
+    return;
+  }
+  if (e.target.id === "s-deals") {
+    const on = e.target.checked;
+    try { await saveDeals({ deals_enabled: on }); S.settings.deals_enabled = on;
+          if (on) await api("/api/deals/check", {});
+          toast(on ? "Deals on. Checking your wishlist now…" : "Deals off.", "ok"); setTimeout(loadDeals, 600); }
+    catch (err) { e.target.checked = !on; toast(err.message, "bad"); }
     return;
   }
   if (e.target.id === "s-phone") {

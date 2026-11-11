@@ -28,7 +28,8 @@ import store
 
 PORT = 5578
 COOKIE = "lr_phone"
-SECRET_KEYS = ("steam_api_key", "discord_webhook", "miner_password", "phone_pin", "phone_token")
+SECRET_KEYS = ("steam_api_key", "discord_webhook", "miner_password", "phone_pin", "phone_token",
+               "ggdeals_key", "deals_webhook")
 PC_ONLY_SETTINGS = SECRET_KEYS + ("steam_profile_input", "miner_url", "start_with_windows")
 PC_ONLY_PATHS = ("/api/miner/login", "/api/phone")
 OPEN_PATHS = ("/api/phone-login", "/icon.png", "/manifest.webmanifest", "/loot-radar.ico")
