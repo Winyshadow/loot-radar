@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.6.1 (2026-11-11)
+
+- Key-shop warnings now also say to buy a **game key** ("Steam Key" / "CD Key"), not an **account** or "gift": accounts aren't yours and can be taken back. GG.deals only shares the cheapest key-shop price (not what kind of offer it is), so the warning shows on every key-shop price, on the Deals page and in Discord pings.
+- Green Man Gaming is now named among the safe official stores.
+
 ## 1.6.0 (2026-11-11)
 
 - New **Game Deals**: Loot Radar now finds cheap games as well as free loot.

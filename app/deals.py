@@ -188,9 +188,10 @@ def reasons(row: dict, min_discount: int, keyshops: bool, prev: dict | None) -> 
 
 # GG.deals only tells us the cheapest key-shop price, not which region that key is locked to,
 # so every key-shop price carries this reminder.
-KEY_REGION_TIP = ("Check the key's region on the shop page: **GLOBAL** or **ROW** (Rest of World) keys work in "
-                  "South Africa. EU-, US-, UK-, Asia- or RU/CIS-only keys may not activate on your Steam account. "
-                  "\"All prices on GG.deals\" lists each offer with its region.")
+KEY_REGION_TIP = ("Make sure it's a **game key** (\"Steam Key\" / \"CD Key\"), not an **account** or \"gift\": "
+                  "accounts aren't yours and can be taken back. Then check the key's region: **GLOBAL** or **ROW** "
+                  "(Rest of World) keys work in South Africa; EU-, US-, UK-, Asia- or RU/CIS-only keys may not "
+                  "activate on your Steam account. \"All prices on GG.deals\" lists each offer.")
 
 REASON_TEXT = {
     "steam_sale": "big Steam sale",
