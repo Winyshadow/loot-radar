@@ -6,6 +6,10 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.6.6 (2026-11-11)
+
+- Fixed **Completed drops** showing a drop you never got. The drop miner can briefly think a drop is claimed when its own minute count runs ahead of Twitch's, then finds out when it reloads your progress from Twitch (for example 479 of 480 minutes when the campaign ended). Loot Radar now re-checks the Completed list every few minutes and takes off any drop the miner says isn't claimed, lowers the "rewards" count to match, and notes it in Activity.
+
 ## 1.6.5 (2026-11-11)
 
 - Fixed muted mode piling up blank tabs in Brave. Brave reopens last time's tabs when it starts, so every start added another blank tab. Loot Radar's window now always opens with just one tab.

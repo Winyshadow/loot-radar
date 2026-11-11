@@ -371,6 +371,20 @@ def _note_claims(camp: dict, completed: list, cleared: set) -> None:
             known.add(d["id"])
 
 
+def drop_unclaimed(campaigns: list, completed: list) -> list:
+    """Take drops off the Completed list that the miner now says were never claimed.
+
+    The miner can briefly think a drop is claimed (its own minute count ran ahead of Twitch's) and
+    only learns the truth when it reloads your progress from Twitch, e.g. 479 of 480 minutes when
+    the campaign ended. Returns the removed entries (the list is changed in place)."""
+    unclaimed = {d.get("id") for c in campaigns or [] for d in c.get("drops") or []
+                 if d.get("id") and d.get("is_claimed") is False}
+    gone = [e for e in completed if e.get("id") in unclaimed]
+    if gone:
+        completed[:] = [e for e in completed if e.get("id") not in unclaimed]
+    return gone
+
+
 def clear_completed(older_than_hours: float = 0) -> int:
     """Hide completed drops (all, or only ones older than N hours). Returns how many."""
     state = store.load_state()
@@ -558,9 +572,14 @@ def _run_cycle(watcher, force_news: bool) -> None:
 
     if campaigns is not None:
         newly = len(completed) - claimed_before
+        # Also checks expired campaigns: that's where a drop that just missed out shows up.
+        wrong = drop_unclaimed(campaigns, completed)
+        for e in wrong:
+            store.log(f"{e.get('reward')} ({e.get('game_name')}) wasn't actually claimed: Twitch shows it unfinished. "
+                      "Took it off Completed drops.", "warn")
         extra = {"completed_drops": completed[-300:]}
-        if newly > 0:
-            extra["claimed_total"] = int(state.get("claimed_total") or 0) + newly
+        if newly or wrong:
+            extra["claimed_total"] = max(0, int(state.get("claimed_total") or 0) + newly - len(wrong))
         store.patch_state(**extra)
     else:
         relevant = state.get("campaigns") or []  # miner offline: keep showing the last known list
