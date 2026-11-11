@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 import threading
 import time
@@ -288,6 +289,9 @@ def api_settings():
     if "deals_region" in data:
         r = str(data["deals_region"]).strip().lower()
         cfg["deals_region"] = r if r in deals.REGIONS else ""
+    if "deals_currency" in data:
+        c = str(data["deals_currency"]).strip().upper()
+        cfg["deals_currency"] = c if re.fullmatch(r"[A-Z]{3}|NONE", c) else ""
     if "deals_min_discount" in data:
         try:
             cfg["deals_min_discount"] = min(95, max(5, int(data["deals_min_discount"])))
@@ -403,9 +407,13 @@ def api_streamers():
 @app.get("/api/deals")
 def api_deals():
     """Your wishlist deals, as saved by the last check (deals.py)."""
-    state = store.load_state()
-    return jsonify({"ok": True, **(state.get("deals") or {"rows": [], "updated": 0}),
-                    "checking": deals._lock.locked()})
+    block = dict(store.load_state().get("deals") or {"rows": [], "updated": 0})
+    if block.get("rows") and block.get("has_gg"):
+        try:  # follows the currency setting straight away, with the latest saved (or fetched) rate
+            block["fx"] = deals.fx_for(block, store.load_config())
+        except Exception:
+            pass
+    return jsonify({"ok": True, **block, "checking": deals._lock.locked()})
 
 
 @app.post("/api/deals/check")

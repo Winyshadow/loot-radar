@@ -628,7 +628,7 @@
       <h1>Game Deals</h1>
       <span class="pillbox" id="deals-sub"></span>
       <button class="sm" id="btn-deals-check">Check deals now</button>
-      <div class="sub">Your Steam wishlist (and games you add) is checked every 6 hours on Steam and, with a free GG.deals key, on dozens of other stores and key shops. Good deals are pinged to Discord. Prices by <a href="https://gg.deals/" target="_blank">GG.deals</a>.</div>
+      <div class="sub">Your Steam wishlist (and games you add) is checked every 6 hours on Steam and, with a free GG.deals key, on dozens of other stores and key shops. Good deals are pinged to Discord. Prices by <a href="https://gg.deals/" target="_blank">GG.deals</a>.<span id="deals-fx"></span></div>
     </div>
     <div class="banner" id="deals-banner" style="display:none"></div>
     <div class="panel">
@@ -756,7 +756,19 @@
             <option value="br">Brazil (BRL)</option><option value="pl">Poland (PLN)</option><option value="de">Germany</option><option value="fr">France</option>
             <option value="nl">Netherlands</option><option value="se">Sweden</option><option value="dk">Denmark</option><option value="no">Norway</option><option value="ch">Switzerland</option>
           </select>
-          <div class="hint">Which country's prices GG.deals compares (it has no South Africa option, so its prices show in that region's currency). Steam prices always show in rand.</div></div>
+          <div class="hint">Which country's prices GG.deals compares (it has no South Africa option, so its prices show in that region's currency). Steam prices always show in your Steam currency.</div></div>
+        <div class="field"><label>Show GG.deals prices in my currency too</label>
+          <select id="f-deals-cur">
+            <option value="">Automatic (my Steam currency)</option><option value="NONE">Don't convert</option>
+            <option value="ZAR">South African rand (ZAR)</option><option value="USD">US dollar (USD)</option><option value="EUR">Euro (EUR)</option>
+            <option value="GBP">British pound (GBP)</option><option value="AUD">Australian dollar (AUD)</option><option value="CAD">Canadian dollar (CAD)</option>
+            <option value="NZD">New Zealand dollar (NZD)</option><option value="INR">Indian rupee (INR)</option><option value="BRL">Brazilian real (BRL)</option>
+            <option value="PLN">Polish złoty (PLN)</option><option value="CHF">Swiss franc (CHF)</option><option value="SEK">Swedish krona (SEK)</option>
+            <option value="NOK">Norwegian krone (NOK)</option><option value="DKK">Danish krone (DKK)</option><option value="JPY">Japanese yen (JPY)</option>
+            <option value="MXN">Mexican peso (MXN)</option><option value="TRY">Turkish lira (TRY)</option><option value="NGN">Nigerian naira (NGN)</option>
+            <option value="KES">Kenyan shilling (KES)</option><option value="BWP">Botswana pula (BWP)</option><option value="NAD">Namibian dollar (NAD)</option>
+          </select>
+          <div class="hint">Adds an estimate under each GG.deals price (like "≈ R 165"), using the latest exchange rate, updated every 6 hours. It's a guide: the shop's own price and your bank's fees decide what you really pay.</div></div>
       </div>
       <div style="padding:0 18px 16px; display:grid; gap:10px">
         <label class="check-line"><input type="checkbox" id="s-deals-keyshops"> Show key-shop prices too: resellers like G2A, Kinguin and Eneba. Usually cheaper, but they're not official stores, and some keys are region-locked: in South Africa, buy GLOBAL or ROW keys.</label>
@@ -879,9 +891,20 @@ function money(v, cur) {
   try { return new Intl.NumberFormat(undefined, { style: "currency", currency: cur || "USD" }).format(v); }
   catch { return (cur ? cur + " " : "") + Number(v).toFixed(2); }
 }
+function symMoney(v, cur, dp) {  // "R 165" / "$1" (short symbol, fixed decimals)
+  try { return new Intl.NumberFormat(undefined, { style: "currency", currency: cur, currencyDisplay: "narrowSymbol", minimumFractionDigits: dp, maximumFractionDigits: dp }).format(v); }
+  catch { return `${cur} ${Number(v).toFixed(dp)}`; }
+}
+function approx(v, fx) {  // GG.deals price → estimate in your currency ("≈ R 165")
+  if (v === null || v === undefined || !fx) return "";
+  const x = v * fx.rate;
+  return "≈ " + symMoney(x, fx.to, x >= 100 ? 0 : 2);
+}
 function renderDeals() {
   const d = DEALS || { rows: [] }, st = (S && S.settings) || {}, rows = d.rows || [];
   const keyshops = st.deals_keyshops !== false;
+  const fx = d.fx || null;
+  $("#deals-fx").innerHTML = fx ? ` The ≈ amounts are estimates in ${esc(fx.to)} at the latest exchange rate: ${symMoney(1, fx.from, 0)} = ${symMoney(fx.rate, fx.to, 2)} (rates by <a href="${esc(fx.source_url)}" target="_blank">${esc(fx.source)}</a>, ${esc(fx.date)}). What you pay depends on the shop and your bank.` : "";
   $("#deals-sub").innerHTML = d.updated ? `<b>${rows.length}</b> games · ${rows.filter(r => r.on_sale).length} on sale · checked ${esc(ago(d.updated))}` : "not checked yet";
   $("#btn-deals-check").disabled = !!d.checking; $("#btn-deals-check").textContent = d.checking ? "Checking…" : "Check deals now";
   const notes = [];
@@ -907,12 +930,15 @@ function renderDeals() {
   $("#deals").innerHTML = `<div class="deal-head"><span></span><span>Game</span><span>Steam</span><span>Best official store</span><span>${keyshops ? "Key shop (reseller)" : ""}</span><span></span></div>` +
     list.map(r => {
       const s = r.steam || {}, g = r.gg || {};
+      const gfx = fx && g.currency && fx.from === String(g.currency).toUpperCase() ? fx : null;
+      const est = v => gfx ? `<div style="font-size:12px">${approx(v, gfx)}</div>` : "";
+      const lowEst = v => gfx && v != null ? ` (${approx(v, gfx)})` : "";
       const steamCell = s.price == null ? `<span class="faint">${r.free ? "Free to play" : r.soon ? "Not out yet" : "No Steam price yet"}</span>`
         : `${s.discount ? `<span class="tag live">−${s.discount}%</span> ` : ""}<b>${esc(s.text || money(s.price, s.currency))}</b>${s.discount && s.initial_text ? `<s class="faint">${esc(s.initial_text)}</s>` : ""}`;
       const storeCell = !d.has_gg ? `<span class="faint">needs a GG.deals key</span>` : g.retail == null ? `<span class="faint">—</span>`
-        : `<b>${money(g.retail, g.currency)}</b>${low(g.retail, g.low_retail)}<div class="faint" style="font-size:11px">lowest ever ${money(g.low_retail, g.currency)}</div>`;
+        : `<b>${money(g.retail, g.currency)}</b>${low(g.retail, g.low_retail)}${est(g.retail)}<div class="faint" style="font-size:11px">lowest ever ${money(g.low_retail, g.currency)}${lowEst(g.low_retail)}</div>`;
       const keyCell = !keyshops ? "" : !d.has_gg ? `<span class="faint">needs a GG.deals key</span>` : g.keyshop == null ? `<span class="faint">—</span>`
-        : `<b>${money(g.keyshop, g.currency)}</b> <span class="tag key">key shop</span>${low(g.keyshop, g.low_keyshop)}<div class="faint" style="font-size:11px">lowest ever ${money(g.low_keyshop, g.currency)}</div><div style="font-size:11px;color:var(--amber)" title="Buy a game key (not an account or gift), and a GLOBAL or ROW one: region-locked EU/US/UK/Asia/RU keys may not activate in South Africa">⚠️ key, not account · check region</div>`;
+        : `<b>${money(g.keyshop, g.currency)}</b> <span class="tag key">key shop</span>${low(g.keyshop, g.low_keyshop)}${est(g.keyshop)}<div class="faint" style="font-size:11px">lowest ever ${money(g.low_keyshop, g.currency)}${lowEst(g.low_keyshop)}</div><div style="font-size:11px;color:var(--amber)" title="Buy a game key (not an account or gift), and a GLOBAL or ROW one: region-locked EU/US/UK/Asia/RU keys may not activate in South Africa">⚠️ key, not account · check region</div>`;
       return `<div class="deal">
         ${r.image ? `<img class="cover" loading="lazy" src="${esc(r.image)}" alt="" onerror="this.style.visibility='hidden'">` : `<span></span>`}
         <div class="nm" style="min-width:0"><b>${esc(r.name)}</b><div class="faint" style="font-size:12px">${r.manual ? `Added by you · <a href="#" data-deal-remove="${r.appid}">remove</a>` : "On your wishlist"}${(r.why || []).length ? ' · <span style="color:var(--lime)">deal pinged</span>' : ""}</div></div>
@@ -925,7 +951,7 @@ function renderDeals() {
 }
 async function saveDeals(extra) {
   await api("/api/settings", { deals_enabled: $("#s-deals").checked, ggdeals_key: $("#f-gg").value, deals_webhook: $("#f-deals-hook").value,
-    deals_min_discount: $("#f-deals-min").value, deals_region: $("#f-deals-region").value, deals_keyshops: $("#s-deals-keyshops").checked, ...(extra || {}) });
+    deals_min_discount: $("#f-deals-min").value, deals_region: $("#f-deals-region").value, deals_currency: $("#f-deals-cur").value, deals_keyshops: $("#s-deals-keyshops").checked, ...(extra || {}) });
 }
 
 /* ---------------- phone access (Settings on the PC) */
@@ -1508,7 +1534,7 @@ function fillForms() {
   $("#s-lib-alerts").checked = st.alert_library_drops !== false;
   $("#s-win-start").checked = !!st.start_with_windows;
   $("#s-deals").checked = !!st.deals_enabled; $("#f-gg").value = st.ggdeals_key || ""; $("#f-deals-hook").value = st.deals_webhook || "";
-  $("#f-deals-min").value = st.deals_min_discount || 50; $("#f-deals-region").value = st.deals_region || ""; $("#s-deals-keyshops").checked = st.deals_keyshops !== false;
+  $("#f-deals-min").value = st.deals_min_discount || 50; $("#f-deals-region").value = st.deals_region || ""; $("#f-deals-cur").value = st.deals_currency || ""; $("#s-deals-keyshops").checked = st.deals_keyshops !== false;
   if (!(st.steam_api_key && st.steam_id) && !st.steam_skipped) $("#help-steam").open = true;
   if (!st.discord_webhook && !st.discord_skipped) $("#help-discord").open = true;
   if (S.miner_status !== "ok") $("#help-miner").open = true;

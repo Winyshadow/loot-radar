@@ -38,6 +38,7 @@ DEFAULT_CONFIG = {
     "deals_enabled": False,         # watch your Steam wishlist for discounts (see deals.py)
     "ggdeals_key": "",              # GG.deals Prices API key (free; key-shop and store prices)
     "deals_region": "",             # GG.deals region code ("" = its default)
+    "deals_currency": "",           # estimate GG.deals prices in: "" = your Steam currency, "NONE" = no estimate
     "deals_min_discount": 50,       # ping when a Steam discount is at least this many percent
     "deals_keyshops": True,         # show and ping key-shop (reseller) prices too
     "deals_webhook": "",            # Discord channel for deals ("" = the main one)

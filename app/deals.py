@@ -8,7 +8,10 @@ Every 6 hours (or when you press "Check deals now") it:
   * and pings Discord when a game is at least N% off on Steam, or has just dropped to its
     lowest price ever. The same deal is never pinged twice; a further drop pings again.
 
-Prices are shown in each source's own currency (no conversion).
+Prices are shown in each source's own currency. GG.deals has no South Africa region, so its prices
+also get an estimate in your currency (your Steam currency, or the one picked in Settings), using the
+latest exchange rate (ExchangeRate-API, no key needed; the European Central Bank's rates via
+Frankfurter as a backup), refreshed every 6 hours.
 """
 
 from __future__ import annotations
@@ -165,6 +168,86 @@ def ggdeals_prices(key: str, appids: list[int], region: str = "") -> dict[int, d
     return out
 
 
+# ------------------------------------------------------------------ currency estimates
+FX_SECONDS = 6 * 3600
+FX_SYMBOLS = {"ZAR": "R", "USD": "$", "EUR": "€", "GBP": "£", "AUD": "A$", "CAD": "C$", "NZD": "NZ$", "INR": "₹",
+              "JPY": "¥", "BRL": "R$", "PLN": "zł", "CHF": "CHF", "SEK": "kr", "NOK": "kr", "DKK": "kr"}
+
+
+def _fetch_rates(base: str) -> dict | None:
+    """Today's rates from `base` to every other currency, or None if both sources are down."""
+    try:
+        r = requests.get(f"https://open.er-api.com/v6/latest/{base}", headers=HEADERS, timeout=12)
+        j = r.json()
+        if j.get("result") == "success" and isinstance(j.get("rates"), dict):
+            when = j.get("time_last_update_unix") or time.time()
+            return {"rates": j["rates"], "date": time.strftime("%Y-%m-%d", time.gmtime(when)),
+                    "source": "Exchange Rate API", "source_url": "https://www.exchangerate-api.com"}
+    except (requests.RequestException, ValueError):
+        pass
+    try:  # backup: the European Central Bank's daily rates (fewer currencies, but includes ZAR)
+        r = requests.get("https://api.frankfurter.dev/v1/latest", params={"base": base}, headers=HEADERS, timeout=12)
+        j = r.json()
+        if isinstance(j.get("rates"), dict) and j["rates"]:
+            return {"rates": j["rates"], "date": j.get("date") or "",
+                    "source": "European Central Bank (Frankfurter)", "source_url": "https://frankfurter.dev"}
+    except (requests.RequestException, ValueError):
+        pass
+    return None
+
+
+def fx_rates(base: str) -> dict | None:
+    """Latest rates from `base`, fetched at most every 6 hours (older saved rates if offline)."""
+    base = (base or "").upper()
+    if not base:
+        return None
+    saved = (store.load_state().get("fx") or {}).get(base)
+    if saved and time.time() - (saved.get("at") or 0) < FX_SECONDS:
+        return saved
+    fresh = _fetch_rates(base)
+    if not fresh:
+        return saved
+    fresh["at"] = int(time.time())
+    fx = dict(store.load_state().get("fx") or {})
+    fx[base] = fresh
+    store.patch_state(fx=fx)
+    return fresh
+
+
+def target_currency(cfg: dict, steam_currency: str) -> str:
+    """The currency to estimate in: the one picked in Settings, else your Steam currency. "" = none."""
+    pick = (cfg.get("deals_currency") or "").upper()
+    if pick == "NONE":
+        return ""
+    return pick or (steam_currency or "").upper()
+
+
+def fx_for(block: dict, cfg: dict) -> dict | None:
+    """How to turn GG.deals prices in this deals block into estimates (None = no estimate needed)."""
+    rows = block.get("rows") or []
+    steam_cur = next(((r.get("steam") or {}).get("currency") for r in rows if (r.get("steam") or {}).get("currency")), "")
+    gg_cur = next(((r.get("gg") or {}).get("currency") for r in rows if (r.get("gg") or {}).get("currency")), "")
+    to = target_currency(cfg, steam_cur)
+    if not gg_cur or not to or to == gg_cur.upper():
+        return None
+    rates = fx_rates(gg_cur)
+    rate = ((rates or {}).get("rates") or {}).get(to)
+    if not rate:
+        return None
+    return {"from": gg_cur.upper(), "to": to, "rate": float(rate), "date": rates.get("date") or "",
+            "source": rates.get("source") or "", "source_url": rates.get("source_url") or "",
+            "auto": not cfg.get("deals_currency")}
+
+
+def approx(value, fx: dict | None) -> str:
+    """'≈ R 165' for a GG.deals price, or '' when there's no estimate."""
+    if value is None or not fx:
+        return ""
+    v = value * fx["rate"]
+    sym = FX_SYMBOLS.get(fx["to"], fx["to"])
+    return f"≈ {sym} {v:,.0f}" if v >= 100 else f"≈ {sym} {v:,.2f}"
+
+
 # ------------------------------------------------------------------ deciding what's a deal
 def reasons(row: dict, min_discount: int, keyshops: bool, prev: dict | None) -> list[str]:
     """Why this game is worth a ping right now (empty = not a deal).
@@ -221,8 +304,14 @@ def _money(v, cur: str) -> str:
     return "" if v is None else (f"{cur} {v:,.2f}".strip() if cur else f"{v:,.2f}")
 
 
-def deal_embed(row: dict, why: list[str], keyshops: bool) -> dict:
+def deal_embed(row: dict, why: list[str], keyshops: bool, fx: dict | None = None) -> dict:
     s, g = row.get("steam") or {}, row.get("gg") or {}
+    fx = fx if fx and fx.get("from") == (g.get("currency") or "").upper() else None
+
+    def gg_money(v):
+        est = approx(v, fx)
+        return _money(v, g.get("currency")) + (f" ({est})" if est else "")
+
     fields = []
     if s.get("price") is not None:
         val = s.get("text") or _money(s["price"], s.get("currency", ""))
@@ -231,10 +320,10 @@ def deal_embed(row: dict, why: list[str], keyshops: bool) -> dict:
         fields.append({"name": "Steam", "value": val, "inline": True})
     if g.get("retail") is not None:
         low = " 🏆 lowest ever" if g.get("low_retail") is not None and g["retail"] <= g["low_retail"] else ""
-        fields.append({"name": "Best official store", "value": _money(g["retail"], g.get("currency")) + low, "inline": True})
+        fields.append({"name": "Best official store", "value": gg_money(g["retail"]) + low, "inline": True})
     if keyshops and g.get("keyshop") is not None:
         low = " 🏆 lowest ever" if g.get("low_keyshop") is not None and g["keyshop"] <= g["low_keyshop"] else ""
-        fields.append({"name": "Key shop (reseller)", "value": _money(g["keyshop"], g.get("currency")) + low, "inline": True})
+        fields.append({"name": "Key shop (reseller)", "value": gg_money(g["keyshop"]) + low, "inline": True})
         fields.append({"name": "⚠️ Before buying a key", "value": KEY_REGION_TIP, "inline": False})
     links = [f"[Steam page]({row['store_url']})"] + ([f"[All prices on GG.deals]({g['url']})"] if g.get("url") else [])
     fields.append({"name": "Links", "value": " · ".join(links), "inline": False})
@@ -247,7 +336,11 @@ def deal_embed(row: dict, why: list[str], keyshops: bool) -> dict:
         "image": {"url": row.get("image") or f"https://cdn.cloudflare.steamstatic.com/steam/apps/{row['appid']}/header.jpg"},
     }
     if g:
-        embed["footer"] = {"text": "Prices by GG.deals"}
+        foot = "Prices by GG.deals"
+        if fx:
+            one = f"{FX_SYMBOLS.get(fx['from'], fx['from'])}1 = {FX_SYMBOLS.get(fx['to'], fx['to'])} {fx['rate']:,.2f}"
+            foot += f" · ≈ amounts are estimates at {one} (rates by {fx['source']}, {fx['date']})"
+        embed["footer"] = {"text": foot}
     return embed
 
 
@@ -314,6 +407,7 @@ def _check(force: bool, ping: bool) -> dict:
     keyshops = cfg.get("deals_keyshops", True)
     min_disc = int(cfg.get("deals_min_discount") or 50)
     hook = cfg.get("deals_webhook") or cfg.get("discord_webhook") or ""
+    fx = fx_for({"rows": [{"steam": steam.get(a) or {}, "gg": gg.get(a) or {}} for a in watch]}, cfg) if gg else None
     rows, embeds = [], []
     for a in watch:
         info, g = names.get(str(a)) or {}, gg.get(a) or {}
@@ -332,7 +426,7 @@ def _check(force: bool, ping: bool) -> dict:
             alerts.pop(str(a), None)  # deal over: a later sale pings again
         elif should_ping(why, row, last):
             if ping and hook:
-                embeds.append(deal_embed(row, why, keyshops))
+                embeds.append(deal_embed(row, why, keyshops, fx))
             alerts[str(a)] = {"why": why, "at": now, "prices": {
                 "steam": row["steam"].get("price"), "retail": g.get("retail"), "keyshop": g.get("keyshop")}}
     sent = 0
@@ -344,7 +438,7 @@ def _check(force: bool, ping: bool) -> dict:
     rows.sort(key=lambda r: (-(r["steam"].get("discount") or 0), not r["new_low"], r["name"].lower()))
     block = {
         "updated": now, "errors": errors, "source": source, "wishlist_count": len(wish), "extra_count": len(extra),
-        "has_gg": bool(cfg.get("ggdeals_key")), "rows": rows,
+        "has_gg": bool(cfg.get("ggdeals_key")), "rows": rows, "fx": fx,
     }
     store.patch_state(
         deals=block, deal_names=names, deal_alerts=alerts, last_deals_check=now,
@@ -370,5 +464,6 @@ def test_ping() -> bool:
                      "initial_text": "R 849.00"},
            "gg": {"retail": 29.99, "keyshop": 24.10, "low_retail": 29.99, "low_keyshop": 22.0, "currency": "USD",
                   "url": "https://gg.deals/"}}
-    return notify.send(hook, [deal_embed(row, ["steam_sale", "store_low"], cfg.get("deals_keyshops", True))],
+    fx = fx_for({"rows": [row]}, cfg)
+    return notify.send(hook, [deal_embed(row, ["steam_sale", "store_low"], cfg.get("deals_keyshops", True), fx)],
                        content="Test from Loot Radar: this is what a deal ping looks like.")

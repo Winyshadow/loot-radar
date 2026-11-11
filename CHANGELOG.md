@@ -6,6 +6,13 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.6.4 (2026-11-11)
+
+- GG.deals prices (best official store and key shop) now also show an **estimate in your own currency**, like "$12.49 ≈ R 206", including the "lowest ever" prices and the Discord deal pings. Handy for comparing with the Steam price in rand.
+- It uses the latest exchange rate (from Exchange Rate API, with the European Central Bank's rates as a backup), updated every 6 hours. The Deals page shows the rate it used and its date. If you're offline, it uses the last rate it got.
+- Settings → Game deals → **Show GG.deals prices in my currency too**: Automatic (your Steam currency, rand for South Africa), pick another currency, or Don't convert.
+- It's a guide: the shop's own price and your bank's fees decide what you really pay.
+
 ## 1.6.3 (2026-11-11)
 
 - Muted mode and the miner's Twitch sign-in now open in **your default browser** (Brave, Chrome, Edge or Vivaldi) instead of always Edge. If your default is something else (like Firefox), it still uses Edge.
