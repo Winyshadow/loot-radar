@@ -91,7 +91,7 @@
   .page.on { display: block; }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
   .head { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; margin: 18px 6px 18px; }
-  .head h1 { margin: 0; font-size: 40px; font-weight: 400; letter-spacing: -.5px; line-height: 1.1; margin-right: auto;
+  .head h1 { margin: 0; font-size: 40px; font-weight: 400; letter-spacing: -.5px; line-height: 1.1; margin-right: auto; padding-bottom: .14em; /* room for g/y/p under the gradient */
              background: linear-gradient(180deg, #ffffff, #b9d4de); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .head .sub { width: 100%; color: var(--dim); margin-top: -8px; }
 
@@ -116,6 +116,26 @@
   .panel { border-radius: var(--r-lg); background: rgba(10, 36, 50, .6); border: 1px solid var(--line); margin-bottom: 14px; overflow: hidden; }
   .phead { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
   .phead h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  /* Settings: collapsible sections, with a status chip so you can see what's done without opening them */
+  .sect { border-radius: var(--r-lg); background: rgba(10, 36, 50, .6); border: 1px solid var(--line); margin-bottom: 12px; overflow: hidden; }
+  .sect > summary { display: flex; align-items: center; gap: 10px; padding: 15px 18px; cursor: pointer; list-style: none; user-select: none; flex-wrap: wrap; }
+  .sect > summary::-webkit-details-marker { display: none; }
+  .sect > summary:hover { background: rgba(255, 255, 255, .025); }
+  .sect .stitle { font-size: 15px; font-weight: 600; }
+  .sect .ssub { font-size: 12px; }
+  .sect .sst { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border-radius: 99px; font-size: 11.5px; font-weight: 700; white-space: nowrap; background: var(--glass3); color: var(--dim); }
+  .sect .sst:empty { display: none; }
+  .sect .sst.ok { background: rgba(182, 240, 60, .12); color: var(--lime); }
+  .sect .sst.warn { background: rgba(244, 194, 90, .15); color: var(--amber); }
+  .sect .sst.bad { background: rgba(255, 107, 122, .15); color: var(--red); }
+  .sect .sst.new { background: var(--lime); color: #0a2230; box-shadow: 0 0 16px rgba(182, 240, 60, .35); }
+  .sect .chev { width: 9px; height: 9px; border-right: 2px solid var(--dim); border-bottom: 2px solid var(--dim); transform: rotate(-45deg); transition: transform .2s; margin: 0 4px 0 6px; flex: none; }
+  .sect .sst:empty + .chev, .sect .chev.push { margin-left: auto; }
+  .sect[open] > summary .chev { transform: rotate(45deg); }
+  .sect[open] > summary { border-bottom: 1px solid var(--line); }
+  .sect.attn { border-color: rgba(244, 194, 90, .45); }
+  .sect.attn-new { border-color: rgba(182, 240, 60, .55); box-shadow: 0 0 22px rgba(182, 240, 60, .12); }
+  .sect .sbody { padding-top: 10px; }
   .phead .muted { font-size: 12px; }
   .phead .right { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .muted { color: var(--dim); } .faint { color: var(--faint); font-size: 12px; }
@@ -650,7 +670,22 @@
       <b>You're on your phone</b><span class="muted">Steam, Discord, the Twitch login and phone access can only be changed on the PC. Everything else works here.</span>
     </div>
 
-    <div class="cards3">
+    <details class="sect" id="sec-updates">
+      <summary><span class="stitle">Updates</span><span class="sst" id="sst-updates"></span><span class="chev" aria-hidden="true"></span></summary>
+      <div class="sbody">
+        <div class="row" style="justify-content:space-between; padding:2px 18px 10px"><span class="muted" id="upd-checked"></span><button class="sm" id="btn-upd-check">Check for updates</button></div>
+        <div class="xscroll"><table><thead><tr><th>App</th><th>You have</th><th>Newest</th><th></th></tr></thead><tbody id="upd-rows"></tbody></table></div>
+        <div style="padding:12px 18px 16px; display:grid; gap:8px">
+          <label class="check-line"><input type="checkbox" id="s-auto-update"> Install new miner versions automatically</label>
+          <div class="faint">Loot Radar checks GitHub every 6 hours, shows new versions here and pings your Discord.</div>
+        </div>
+      </div>
+    </details>
+
+    <details class="sect" id="sec-setup">
+      <summary><span class="stitle">Setup</span><span class="muted ssub">drop miner, Steam, Discord</span><span class="sst" id="sst-setup"></span><span class="chev" aria-hidden="true"></span></summary>
+      <div class="sbody" style="padding:4px 14px 14px">
+    <div class="cards3" style="margin-bottom:0">
       <div class="card" id="st-miner">
         <h3><span class="n">1</span>Drop miner<span class="tag req">Required</span></h3>
         <details id="help-miner"><summary>How it works</summary>
@@ -700,16 +735,13 @@
         <label class="check-line skip"><input type="checkbox" id="s-skip-discord"> Skip Discord for now (no reminders; untick any time)</label>
       </div>
     </div>
+      </div>
+    </details>
 
-    <div class="panel pc-only" id="phone-panel">
-      <div class="phead"><h2>Phone access</h2><span class="muted">check your drops from your phone</span>
-        <div class="right"><label class="check-line"><input type="checkbox" id="s-phone"> Let my phone connect</label></div></div>
-      <div id="phone-body" style="padding:6px 18px 18px"></div>
-    </div>
-
-    <div class="panel pc-only" id="deals-panel">
-      <div class="phead"><h2>Game deals</h2><span class="muted">wishlist discounts on Steam and key sites</span>
-        <div class="right"><label class="check-line"><input type="checkbox" id="s-deals"> Watch my wishlist for deals</label></div></div>
+    <details class="sect pc-only" id="sec-deals">
+      <summary><span class="stitle">Game deals</span><span class="muted ssub">wishlist discounts on Steam and key sites</span><span class="sst" id="sst-deals"></span><span class="chev" aria-hidden="true"></span></summary>
+      <div class="sbody">
+      <div style="padding:2px 18px 4px"><label class="check-line"><input type="checkbox" id="s-deals"> <b>Watch my wishlist for deals</b></label></div>
       <div class="grid2">
         <div class="field"><label>GG.deals API key (free)</label><input id="f-gg" autocomplete="off" placeholder="Paste your GG.deals key">
           <div class="hint">Adds prices from dozens of stores and key shops. To get one: sign in on <a href="https://gg.deals/" target="_blank">gg.deals</a>, then follow "get your API key" on <a href="https://gg.deals/api/" target="_blank">gg.deals/api</a>. Without it, only Steam prices are checked.</div></div>
@@ -730,26 +762,25 @@
         <label class="check-line"><input type="checkbox" id="s-deals-keyshops"> Show key-shop prices too: resellers like G2A, Kinguin and Eneba. Usually cheaper, but they're not official stores, and some keys are region-locked: in South Africa, buy GLOBAL or ROW keys.</label>
         <div class="row"><button class="lime" id="btn-deals-save">Save</button><button id="btn-deals-test">Send test ping</button></div>
       </div>
-    </div>
-
-    <div class="panel" id="updates-panel">
-      <div class="phead"><h2>Updates</h2><span class="muted" id="upd-checked"></span>
-        <div class="right"><button class="sm" id="btn-upd-check">Check for updates</button></div></div>
-      <div class="xscroll"><table><thead><tr><th>App</th><th>You have</th><th>Newest</th><th></th></tr></thead><tbody id="upd-rows"></tbody></table></div>
-      <div style="padding:12px 18px 16px; display:grid; gap:8px">
-        <label class="check-line"><input type="checkbox" id="s-auto-start"> Start the built-in miner when Loot Radar starts</label>
-        <label class="check-line"><input type="checkbox" id="s-auto-update"> Install new miner versions automatically</label>
-        <label class="check-line"><input type="checkbox" id="s-lib-alerts"> Ping me about drops for games I have but haven't set up (installed from any launcher, or 1h+ on Steam)</label>
-        <div class="faint">Loot Radar checks GitHub every 6 hours and pings your Discord when something new is out.</div>
       </div>
-    </div>
+    </details>
 
-    <div class="panel">
-      <div class="phead"><h2>Preferences</h2><div class="right"><button class="lime sm" id="btn-save-settings">Save preferences</button></div></div>
+    <details class="sect pc-only" id="sec-phone">
+      <summary><span class="stitle">Phone access</span><span class="muted ssub">check your drops from your phone</span><span class="sst" id="sst-phone"></span><span class="chev" aria-hidden="true"></span></summary>
+      <div class="sbody">
+        <div style="padding:2px 18px 4px"><label class="check-line"><input type="checkbox" id="s-phone"> <b>Let my phone connect</b></label></div>
+        <div id="phone-body" style="padding:6px 18px 18px"></div>
+      </div>
+    </details>
+
+    <details class="sect" id="sec-prefs">
+      <summary><span class="stitle">Preferences</span><span class="muted ssub">start-up, alerts, news, miner</span><span class="chev push" aria-hidden="true"></span></summary>
+      <div class="sbody">
       <div class="grid2">
-        <div class="pc-only" style="grid-column:1/-1; display:grid; gap:6px">
-          <label class="check-line"><input type="checkbox" id="s-win-start"> Start Loot Radar when I sign in to Windows</label>
-          <div class="faint" style="font-size:12px">Starts quietly in the system tray, without opening this page. Saved as soon as you tick it.</div></div>
+        <div style="grid-column:1/-1; display:grid; gap:8px">
+          <label class="check-line pc-only"><input type="checkbox" id="s-win-start"> Start Loot Radar when I sign in to Windows <span class="faint" style="font-size:12px">(quietly in the tray, saved as soon as you tick it)</span></label>
+          <label class="check-line"><input type="checkbox" id="s-auto-start"> Start the built-in miner when Loot Radar starts</label>
+          <label class="check-line"><input type="checkbox" id="s-lib-alerts"> Ping me about drops for games I have but haven't set up (installed from any launcher, or 1h+ on Steam)</label></div>
         <div class="field"><label>Steam news alerts</label>
           <select id="s-news">
             <option value="announcements">All official announcements (patch notes, events, leagues)</option>
@@ -762,7 +793,9 @@
         <div class="field"><label>Miner dashboard password (only if you set one)</label><input id="s-miner-pw" type="password" autocomplete="off"></div>
         <div class="field"><label>Drop progress</label><div class="muted" style="padding-top:8px">Refreshed every 2 minutes automatically.</div></div>
       </div>
-    </div>
+      <div class="row" style="padding:0 18px 16px"><button class="lime sm" id="btn-save-settings">Save preferences</button></div>
+      </div>
+    </details>
   </section>
 </div>
 
@@ -810,7 +843,7 @@ function route() {
   $$(".page").forEach(el => el.classList.toggle("on", el.id === "p-" + p));
   $$("#tabs a, #dock a").forEach(a => a.classList.toggle("on", a.dataset.p === p));
   if (p === "browse" && !ALL) loadAllDrops();
-  if (p === "settings") loadPhone();
+  if (p === "settings") { loadPhone(); loadDeals(); }
   if (p === "deals") loadDeals();
   window.scrollTo({ top: 0 });
 }
@@ -837,7 +870,7 @@ let DEALS = null, dealFilter = "all", dealsPoll = null;
 async function loadDeals() {
   if (!S) { setTimeout(loadDeals, 600); return; }  // settings not loaded yet (Deals opened first)
   try { DEALS = await api("/api/deals"); } catch (e) { DEALS = { error: e.message, rows: [] }; }
-  renderDeals();
+  renderDeals(); renderSections();
   clearTimeout(dealsPoll);
   if (DEALS.checking) dealsPoll = setTimeout(loadDeals, 3000);  // a check is running: refresh when it's done
 }
@@ -985,6 +1018,45 @@ function renderTailscale() {
 async function setPhone(body, okMsg) {
   try { PHONE = await api("/api/phone/config", body); renderPhone(); if (okMsg) toast(okMsg, "ok"); }
   catch (e) { toast(e.message, "bad"); loadPhone(); }
+}
+
+/* ---------------- Settings sections: status chips, and open/closed state */
+// A section opens by itself when it needs you (setup not done, update out); otherwise it stays
+// the way you left it (remembered in this browser).
+function setSect(id, cls, text, attention) {
+  const el = $("#" + id), chip = $("#sst-" + id.replace("sec-", ""));
+  if (chip) { chip.className = "sst " + (cls || ""); chip.textContent = text || ""; }
+  el.classList.toggle("attn", attention === "warn"); el.classList.toggle("attn-new", attention === "new");
+  if (!el.dataset.init) {
+    el.dataset.init = "1";
+    let saved = null; try { saved = localStorage.getItem("lr-sect-" + id); } catch {}
+    const want = attention ? true : saved === "1";
+    if (el.open !== want) { el.dataset.prog = "1"; el.open = want; }
+  } else if (attention && el.dataset.attn !== attention) {  // something new needs you: open it
+    if (!el.open) { el.dataset.prog = "1"; el.open = true; }
+  }
+  el.dataset.attn = attention || "";
+}
+document.addEventListener("toggle", e => {
+  const el = e.target;
+  if (!el.matches || !el.matches("details.sect")) return;
+  if (el.dataset.prog) { delete el.dataset.prog; return; }  // opened by Loot Radar, not by you
+  try { localStorage.setItem("lr-sect-" + el.id, el.open ? "1" : "0"); } catch {}
+}, true);
+function renderSections() {
+  if (!S) return;
+  const st = S.settings, u = S.updates || {}, lr = u.loot_radar || {}, mn = u.miner || {};
+  const upd = lr.available || (mn.available && S.miner_builtin);
+  setSect("sec-updates", upd ? "new" : u.checked ? "ok" : "", upd ? "Update available" : u.checked ? "Up to date" : "Not checked yet", upd ? "new" : "");
+  const steamOk = !!(st.steam_api_key && st.steam_id), hookOk = !!st.discord_webhook, mOk = S.miner_status === "ok";
+  const part = (ok, skipped, name) => ok ? `${name} ✓` : skipped ? `${name} skipped` : `${name} –`;
+  const parts = [mOk ? "Miner ✓" : "Miner not set up", part(steamOk, st.steam_skipped, "Steam"), part(hookOk, st.discord_skipped, "Discord")];
+  const optMissing = (!steamOk && !st.steam_skipped) || (!hookOk && !st.discord_skipped);
+  setSect("sec-setup", !mOk ? "bad" : optMissing ? "warn" : "ok", parts.join(" · "), !mOk ? "warn" : "");
+  const rows = (DEALS && DEALS.rows) || [];
+  setSect("sec-deals", st.deals_enabled ? "ok" : "", !st.deals_enabled ? "Off" : !st.ggdeals_key ? "On · Steam prices only" : DEALS && DEALS.updated ? `On · ${rows.filter(r => r.on_sale).length} on sale` : "On", "");
+  setSect("sec-phone", st.phone_access ? "ok" : "", st.phone_access ? "On" : "Off", "");
+  setSect("sec-prefs", "", "", "");
 }
 
 function syncDock() {
@@ -1421,6 +1493,7 @@ function renderUpdates() {
   ub.innerHTML = items.join(" · ") + (uj.state === "working" || uj.state === "done" ? "" : ' <a href="#/settings" style="margin-left:auto"><button class="sm">See updates</button></a>');
   $("#setup-badge").style.display = (lr.available || (mn.available && S.miner_builtin) || $("#setup-banner").style.display !== "none") ? "" : "none";
   syncDock();
+  renderSections();
 }
 
 function fillForms() {
@@ -1576,7 +1649,7 @@ document.addEventListener("click", async e => {
   }
   if (b.dataset.phoneAddr) { PHONE_ADDR = b.dataset.phoneAddr; renderPhone(); return; }
   if (b.dataset.act === "ts-recheck") { TS = null; renderTailscale(); await loadPhone(); await loadTailscale(true); return; }
-  if (b.dataset.act === "ts-show-qr") { if (TS && TS.ip) PHONE_ADDR = TS.ip; renderPhone(); $("#phone-panel").scrollIntoView({ behavior: "smooth" }); return; }
+  if (b.dataset.act === "ts-show-qr") { if (TS && TS.ip) PHONE_ADDR = TS.ip; renderPhone(); $("#sec-phone").scrollIntoView({ behavior: "smooth" }); return; }
   if (b.dataset.act === "phone-new-pin") {
     if (confirm("Make a new PIN? Phones that are signed in will need to enter the new one.")) { PHONE_V++; setPhone({ new_pin: true }, "New PIN made. Phones are signed out."); }
     return;

@@ -6,6 +6,13 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.6.2 (2026-11-11)
+
+- **Tidier Settings.** Everything is now in five sections you open and close with a click: **Updates**, **Setup** (drop miner, Steam, Discord), **Game deals**, **Phone access** and **Preferences**. Each header shows its status, so you can see what's done without opening it: "Up to date", "Miner ✓ · Steam ✓ · Discord ✓", "On · 16 on sale", "On" / "Off".
+- Sections open by themselves when they need you: **Setup** while the drop miner isn't set up, and **Updates** (moved to the top, with a bright "Update available" chip and glow) when a new version is out. Otherwise they stay the way you left them.
+- "Start the built-in miner" and "Ping me about drops for games I have" moved to Preferences, next to "Start with Windows".
+- Fixed the bottom of the "g" in page titles (like "Settings") being cut off.
+
 ## 1.6.1 (2026-11-11)
 
 - Key-shop warnings now also say to buy a **game key** ("Steam Key" / "CD Key"), not an **account** or "gift": accounts aren't yours and can be taken back. GG.deals only shares the cheapest key-shop price (not what kind of offer it is), so the warning shows on every key-shop price, on the Deals page and in Discord pings.
