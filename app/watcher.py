@@ -109,6 +109,22 @@ class BrowserGone(Exception):
     """The browser window was closed (by you) or crashed."""
 
 
+def waiting_page(game: str) -> str:
+    """A small page for the window while no drops stream is live (instead of a blank tab)."""
+    import html
+    from urllib.parse import quote
+    g = html.escape(game or "this game")
+    body = f"""<!doctype html><html><head><meta charset="utf-8"><title>Loot Radar · waiting for a stream</title>
+<style>body{{margin:0;height:100vh;display:grid;place-items:center;background:#0d1417;color:#dfe8e6;
+font:16px/1.5 system-ui,Segoe UI,sans-serif}}main{{max-width:520px;padding:28px;text-align:center}}
+h1{{font-size:22px;margin:0 0 10px;color:#c6f35c}}p{{margin:8px 0;color:#9fb0ad}}b{{color:#dfe8e6}}</style></head>
+<body><main><h1>Waiting for a live drops stream</h1>
+<p>Nobody is streaming <b>{g}</b> with drops switched on right now.</p>
+<p>Loot Radar checks again every 10 minutes and opens a stream here by itself, muted and at the lowest quality.</p>
+<p>You can minimise this window. Closing it pauses muted mode.</p></main></body></html>"""
+    return "data:text/html;charset=utf-8," + quote(body)
+
+
 # Chrome-type browsers that can run a separate window we talk to over DevTools.
 CHROMIUM_BROWSERS = {"brave.exe": "Brave", "chrome.exe": "Chrome", "msedge.exe": "Edge",
                      "vivaldi.exe": "Vivaldi", "chromium.exe": "Chromium"}
@@ -190,6 +206,8 @@ class PlainBrowser:
                             else self.base_profile.with_name(f"{self.base_profile.name}-{self.name.lower()}"))
         self.kill_leftovers()
         self.profile_dir.mkdir(parents=True, exist_ok=True)
+        # Some browsers (Brave) reopen last time's tabs on start, which piles up old tabs. Forget them.
+        shutil.rmtree(self.profile_dir / "Default" / "Sessions", ignore_errors=True)
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             self.port = sock.getsockname()[1]
@@ -209,6 +227,13 @@ class PlainBrowser:
                 time.sleep(0.4)
         # Browser-level connection only; no Origin header (Chrome/Edge reject unknown origins).
         self.ws = websocket.create_connection(info["webSocketDebuggerUrl"], timeout=20, suppress_origin=True)
+        # One tab only: close any extra tab the browser opened by itself (restored or welcome pages).
+        time.sleep(1)
+        for extra in self.tabs()[1:]:
+            try:
+                self.call("Target.closeTarget", {"targetId": extra["targetId"]})
+            except RuntimeError:
+                pass
 
     def running(self) -> bool:
         return self.ws is not None and self.proc is not None and self.proc.poll() is None
@@ -449,7 +474,9 @@ class MutedWatcher:
                         continue
                     if not logins:
                         if channel is not None or desired != current:
-                            br.navigate("about:blank")
+                            br.navigate(waiting_page(desired))
+                            store.log(f"Muted mode: no live drops-enabled streams for {desired} right now. "
+                                      "Waiting; it checks again every 10 minutes.")
                         channel, current = None, desired
                         self._set("waiting", f"No live drops-enabled streams for {desired} right now",
                                   game=desired, channel=None)

@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.6.5 (2026-11-11)
+
+- Fixed muted mode piling up blank tabs in Brave. Brave reopens last time's tabs when it starts, so every start added another blank tab. Loot Radar's window now always opens with just one tab.
+- When no stream for the game has drops on right now, the window no longer sits on a blank page. It says it's **waiting for a live drops stream**, that Loot Radar checks again every 10 minutes and opens one by itself, and that you can minimise the window.
+
 ## 1.6.4 (2026-11-11)
 
 - GG.deals prices (best official store and key shop) now also show an **estimate in your own currency**, like "$12.49 ≈ R 206", including the "lowest ever" prices and the Discord deal pings. Handy for comparing with the Steam price in rand.
