@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 2.0.3 (2026-11-12)
+
+- **No more "update available" right after updating.** The installed app kept showing the update it had just installed (until its next check, up to 6 hours later). It now knows straight away that it's up to date.
+- **Update files are cleaned up.** Each update downloads a setup file of about 20 MB to Windows' temp folder; Loot Radar now deletes them once the update has finished (including ones left over from earlier updates).
+
 ## 2.0.2 (2026-11-12)
 
 - **Uses your whole screen.** The lists on Browse drops and Library, and the Activity log, now reach down to the bottom of the window instead of stopping at a fixed height, so a big monitor shows many more rows at once (and resizing the window resizes them). On wide screens the pages also get wider, up to 1600 pixels of content. Small windows and phones work as before.

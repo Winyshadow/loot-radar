@@ -849,6 +849,7 @@ def main():
     use_window = paths.FROZEN and not args.console and not cfg.get("use_browser") and window.available()
     store.log(f"Loot Radar {updates.current_version()} started"
               + (" (installed app)." if paths.FROZEN else "."))
+    updates.after_start()  # no "update available" for the version now running; old setup files go
     autostart.refresh_path()
     _bg(minerctl.autostart)
     threading.Thread(target=scheduler, name="scheduler", daemon=True).start()

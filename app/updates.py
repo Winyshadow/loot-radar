@@ -179,6 +179,44 @@ def forget_miner_notice() -> None:
         store.patch_state(updates=info)
 
 
+def after_start() -> None:
+    """Right after Loot Radar starts. The last check is kept for 6 hours, so after an update it
+    would still say "a new version is out": correct it for the version now running. Then remove
+    the setup files earlier updates downloaded (now, and again in 2 minutes: right after an
+    update the setup that started this copy may still be finishing and hold on to its file)."""
+    info = dict(store.load_state().get("updates") or {})
+    lr = dict(info.get("loot_radar") or {})
+    now = current_version()
+    if lr and lr.get("current") != now:
+        lr.update(current=now, available=bool(lr.get("latest")) and minerctl.newer(lr["latest"], now))
+        info["loot_radar"] = lr
+        store.patch_state(updates=info)
+    clean_setup_files()
+    t = threading.Timer(120, clean_setup_files)
+    t.daemon = True
+    t.start()
+
+
+def clean_setup_files() -> int:
+    """Delete downloaded LootRadarSetup-<version>.exe files (about 20 MB each); they're only
+    needed while installing. One that's still in use stays until the next try. Returns bytes freed."""
+    freed = 0
+    if job["state"] == "working":  # an update is downloading or starting its setup right now
+        return 0
+    for p in Path(tempfile.gettempdir()).glob("LootRadarSetup-*"):
+        if p.suffix.lower() not in (".exe", ".part") or not p.is_file():
+            continue
+        try:
+            size = p.stat().st_size
+            p.unlink()
+            freed += size
+        except OSError:
+            pass
+    if freed:
+        store.log(f"Removed old update files ({freed / 1_000_000:.0f} MB).")
+    return freed
+
+
 def latest_installer() -> dict | None:
     """The newest GitHub Release: {version, url (of LootRadarSetup.exe, or None), size, page}."""
     r = requests.get(RELEASE_API, timeout=20, headers={"Accept": "application/vnd.github+json"})
