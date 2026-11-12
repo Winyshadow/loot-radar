@@ -44,6 +44,41 @@ def _bg(fn, *a, **kw):
     threading.Thread(target=fn, args=a, kwargs=kw, daemon=True).start()
 
 
+LOCAL_HOSTS = {f"127.0.0.1:{PORT}", f"localhost:{PORT}", f"[::1]:{PORT}"}
+_refused_logged = {"at": 0.0}
+
+
+def foreign_reason(req) -> str | None:
+    """Why a request didn't come from Loot Radar's own page (None if it did).
+
+    Any website open in your browser can send requests to 127.0.0.1. These rules make sure only
+    Loot Radar's own dashboard (and the phone page, with its PIN) can read or change anything:
+      * the PC dashboard must be addressed as 127.0.0.1 / localhost (stops "DNS rebinding"),
+      * a request sent by a web page must come from Loot Radar's own address (stops other sites).
+    Programs on the PC that send no Origin (Loot Radar's own checks) are unaffected."""
+    host = (req.host or "").lower()
+    if not phone.is_phone_request(req) and host not in LOCAL_HOSTS:
+        return "unknown address"
+    if req.method in ("POST", "PUT", "PATCH", "DELETE") or req.path.startswith("/api/"):
+        origin = (req.headers.get("Origin") or "").lower()
+        if origin and origin != f"http://{host}":
+            return "another website"
+        if req.headers.get("Sec-Fetch-Site", "").lower() in ("cross-site", "same-site"):
+            return "another website"
+    return None
+
+
+@app.before_request
+def _own_page_only():
+    why = foreign_reason(request)
+    if not why:
+        return None
+    if time.time() - _refused_logged["at"] > 60:  # at most one log line a minute
+        _refused_logged["at"] = time.time()
+        store.log(f"Refused a request from {why} ({request.method} {request.path}).", "warn")
+    return _err("Refused: this request didn't come from Loot Radar's own page.", 403)
+
+
 @app.before_request
 def _phone_gate():
     """Requests through the phone server need the PIN cookie; PC-only things are refused."""

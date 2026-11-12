@@ -60,6 +60,10 @@ Loot Radar tells you (on the dashboard and in Discord) when there's a new versio
 
 The drop miner is [Twitch Drops Miner](https://github.com/SimpliAj/twitchdropsminer) by SimpliAj, based on DevilXD's TwitchDropsMiner, used under the MIT licence. Loot Radar downloads it from its official GitHub releases; it isn't included in this repository.
 
+## Licence
+
+Loot Radar © 2026 solitary_samurai. All rights reserved. It's free to download and use for your own personal use; copying, changing, re-uploading or selling its code or artwork needs written permission. See [LICENSE](LICENSE). Want a friend to have it? Send them the link to this page.
+
 ## For maintainers: publishing an update
 
 1. Make your changes.

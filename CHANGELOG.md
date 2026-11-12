@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.7.3 (2026-11-12)
+
+- Safer: other websites open in your browser can no longer talk to Loot Radar. Before, a malicious page could in theory have sent it commands (like changing your Discord link). Now only Loot Radar's own dashboard, and your phone with its PIN, are accepted. Nothing changes in how you use it.
+- Added a licence: Loot Radar is free for personal use, all rights reserved. See the LICENSE file and the line under Settings → Updates.
+
 ## 1.7.2 (2026-11-12)
 
 - Tidier Deals page: the **Best official store** column is gone, so it's just **Steam** and the **Key shop**. Steam's own rand price already covers official stores, and the dollar price next to it mostly added clutter. Discord no longer pings for official-store lowest prices either; Steam sales and key-shop lowest prices still ping.

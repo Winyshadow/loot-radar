@@ -1,0 +1,23 @@
+Loot Radar
+Copyright (c) 2026 solitary_samurai (github.com/Winyshadow). All rights reserved.
+
+You may download, install and use Loot Radar, for free, for your own personal,
+non-commercial use, and you may look at its source code on GitHub.
+
+Without written permission from the copyright holder you may not:
+  - copy, modify, translate or build on the source code, artwork or text;
+  - redistribute, publish, re-upload or share copies of Loot Radar, changed or unchanged
+    (share a link to the official GitHub page instead);
+  - sell Loot Radar, or use it or any part of it in a paid product or service.
+
+Loot Radar is provided "as is", without warranty of any kind. In no event shall the
+copyright holder be liable for any claim, damages or other liability arising from its use.
+Using the drop miner may break Twitch's terms of service; you use it at your own risk.
+
+Third-party software
+--------------------
+The drop miner that Loot Radar can download and run, Twitch Drops Miner
+(github.com/SimpliAj/twitchdropsminer, based on DevilXD's TwitchDropsMiner), is not part
+of Loot Radar. It belongs to its authors and is used under its own MIT licence. Loot Radar
+downloads it from its official GitHub releases. The Python packages Loot Radar installs
+are likewise covered by their own licences.
