@@ -23,6 +23,7 @@ import memguard
 import minerctl
 import updates
 import notify
+import waits
 import phone
 import steam
 import store
@@ -250,10 +251,16 @@ def api_now():
     out["points"] = sorted(({"login": k, **v} for k, v in points.items()),
                            key=lambda p: (not p.get("live"), -(p["balance"] or 0)))[:8]
 
+    # why running games aren't being mined (offline channels, no streams, waiting their turn)
+    camps = store.load_state().get("campaigns") or []
+    try:
+        out["waits"] = waits.reasons(st, chans, camps, out["muted"])
+    except Exception:  # never let this break the Now mining card
+        out["waits"] = {}
+
     # add what Loot Radar knows: reward image, game art, drops left in this campaign
     d = out["drop"]
     if d:
-        camps = store.load_state().get("campaigns") or []
         camp = next((c for c in camps if c.get("id") == d.get("campaign_id")), None)
         if camp:
             pending = [x for x in camp["drops"] if not x.get("claimed") and not checks.is_sub_drop(x)]

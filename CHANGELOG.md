@@ -6,6 +6,14 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.7.0 (2026-11-12)
+
+- **Why isn't it mining?** When a running drop isn't being mined, Loot Radar now says why, under the game in Running drops and in the Now mining card. For example: "Only counts on Warframe or WarframeInternational, both offline (last live 10 h ago)", "Nobody is streaming it with drops on right now", or "Waiting its turn after Apex Legends". The status tag says the same in short: Channels offline, No live stream, Queued, Starting or Mining now.
+- You don't have to do anything: the miner already skips a game with no live stream and mines the next one that has one, and it starts by itself the moment a channel goes live.
+- New **Twitch button** on every game in Running drops opens its drop campaign on Twitch. Open a game to see **Campaign on Twitch** and links to the channels it counts on (or all of the game's streams).
+- The **games waiting for a campaign** are now a tidy A to Z list that folds away under one line ("27 games waiting for a campaign"). Click to open it; it remembers.
+- On a phone, a game's buttons now sit on their own line, so the name has room.
+
 ## 1.6.6 (2026-11-11)
 
 - Fixed **Completed drops** showing a drop you never got. The drop miner can briefly think a drop is claimed when its own minute count runs ahead of Twitch's, then finds out when it reloads your progress from Twitch (for example 479 of 480 minutes when the campaign ended). Loot Radar now re-checks the Completed list every few minutes and takes off any drop the miner says isn't claimed, lowers the "rewards" count to match, and notes it in Activity.

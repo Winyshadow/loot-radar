@@ -203,11 +203,13 @@
   .plist div.cur { background: rgba(182, 240, 60, .08); }
   .plist div.cur a { color: var(--lime); }
   .nidle { display: grid; gap: 10px; justify-items: start; color: var(--dim); }
+  .nwhy { padding: 10px 12px; border-radius: 12px; background: rgba(255, 190, 80, .07); border: 1px solid rgba(255, 190, 80, .25); color: var(--text); font-size: 13px; line-height: 1.45; }
+  .nwhy div { color: var(--amber); margin-top: 2px; }
 
   /* ---------- running drops (collapsible) */
   .game { border-bottom: 1px solid var(--line); }
   .game:last-child { border-bottom: 0; }
-  .grow { display: grid; grid-template-columns: 52px minmax(220px, 2.2fr) minmax(150px, 1.6fr) 110px 150px 112px; gap: 16px; align-items: center; padding: 12px 16px; cursor: pointer; transition: background .15s; }
+  .grow { display: grid; grid-template-columns: 52px minmax(220px, 2.2fr) minmax(150px, 1.6fr) 132px 130px 140px; gap: 16px; align-items: center; padding: 12px 16px; cursor: pointer; transition: background .15s; }
   .grow:hover { background: rgba(160, 220, 245, .035); }
   .grow .chev { transition: transform .25s; }
   .prio { display: flex; align-items: center; gap: 6px; color: var(--faint); cursor: grab; user-select: none; }
@@ -217,8 +219,23 @@
   .gacts button.round { width: 32px; height: 32px; }
   .game.dragging { opacity: .45; }
   .game.drop-above { box-shadow: inset 0 2px 0 var(--lime); } .game.drop-below { box-shadow: inset 0 -2px 0 var(--lime); }
-  .waiting { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 14px 18px; border-top: 1px solid var(--line); }
-  .waiting .chip { padding: 4px 10px; border-radius: 8px; background: rgba(4, 20, 30, .5); border: 1px solid var(--line); color: var(--dim); font-size: 12px; }
+  .gacts a { display: contents; }
+  .gacts .tw:hover { border-color: rgba(169, 112, 255, .7); color: var(--violet); }
+  .why { margin-top: 3px; font-size: 12px; color: var(--amber); overflow: hidden; text-overflow: ellipsis; }
+  .why.ok { color: var(--dim); }
+  .clinks { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 8px 14px; border-bottom: 1px solid var(--line); font-size: 12px; }
+  .clinks a { color: var(--violet); }
+  .grow .tag { white-space: nowrap; }
+  .waiting { border-top: 1px solid var(--line); }
+  .wtoggle { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 10px; padding: 13px 18px; cursor: pointer; color: var(--dim); font-size: 13px; }
+  .wtoggle:hover { background: rgba(160, 220, 245, .035); }
+  .wtoggle:focus-visible { outline: 2px solid var(--lime); outline-offset: -2px; }
+  .wtoggle b { color: var(--text); font-weight: 600; }
+  .wtoggle svg { transition: transform .2s; flex: none; }
+  .waiting.open .wtoggle svg { transform: rotate(90deg); color: var(--lime); }
+  .wgrid { display: none; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; padding: 0 18px 16px; }
+  .waiting.open .wgrid { display: grid; animation: rise .25s ease; }
+  .waiting .chip { padding: 6px 10px; border-radius: 8px; background: rgba(4, 20, 30, .5); border: 1px solid var(--line); color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .game.open .grow .chev { transform: rotate(45deg); border-color: rgba(182, 240, 60, .6); color: var(--lime); }
   .game.open .grow { background: rgba(160, 220, 245, .04); }
   .gbody { display: none; padding: 4px 16px 16px 58px; }
@@ -356,7 +373,7 @@
   @media (max-width: 1100px) {
     .stats { grid-template-columns: repeat(2, 1fr); }
     .now { grid-template-columns: 1fr 1fr; } .now .ncard:first-child { grid-column: 1 / -1; }
-    .grow { grid-template-columns: 52px 1fr 120px 112px; }
+    .grow { grid-template-columns: 52px 1fr 132px 140px; }
     .grow .hide-md { display: none; }
   }
   @media (max-width: 760px) {
@@ -367,7 +384,9 @@
     .cards3, .grid2, .legend, .now { grid-template-columns: 1fr; }
     .status { width: 100%; margin-left: 0; overflow-x: auto; }
     .tabs { width: 100%; }
-    .grow { grid-template-columns: 40px 1fr 112px; } .grow .hide-sm { display: none; }
+    .grow { grid-template-columns: 40px 1fr; gap: 8px 10px; } .grow .hide-sm { display: none; }
+    .grow .gacts { grid-column: 2; justify-content: flex-start; }
+    .wgrid { grid-template-columns: 1fr 1fr; }
     .gbody { padding-left: 16px; }
     .drop { grid-template-columns: 40px 1fr; } .drop .hide-sm { display: none; }
     .hide-sm { display: none; }
@@ -1211,19 +1230,30 @@ function renderRunning() {
   list.sort((a, b) => ((rank.has(a.appid) ? rank.get(a.appid) : 1e6) - (rank.has(b.appid) ? rank.get(b.appid) : 1e6))
     || (b.active - a.active) || String(a.ends).localeCompare(String(b.ends)));
   list.forEach((g, i) => g.pos = i + 1);
-  RUN_ORDER = list.map(g => g.appid);
-  // queued games with no campaign right now (like the miner's "waiting for campaign")
+  RUN_ORDER = list.map(g => g.appid); RUN_NAMES = list.map(g => g.name);
+  // queued games with no campaign right now (like the miner's "waiting for campaign"), A to Z, folded away
   const running = new Set(list.map(g => g.appid)), byKey = Object.fromEntries(S.games.map(x => [x.appid, x]));
-  const waiting = prio.filter(k => !running.has(k) && byKey[k] && ["miner", "muted"].includes(byKey[k].mode)).map(k => byKey[k].name);
-  $("#waiting").style.display = waiting.length ? "" : "none";
-  $("#waiting").innerHTML = `<span class="faint">Waiting for a campaign:</span>` + waiting.map(n => `<span class="chip">${esc(n)}</span>`).join("");
+  const waiting = prio.filter(k => !running.has(k) && byKey[k] && ["miner", "muted"].includes(byKey[k].mode)).map(k => byKey[k].name)
+    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }));
+  const wsig = JSON.stringify(waiting);
+  if (wsig !== waitSig) {
+    waitSig = wsig;
+    $("#waiting").style.display = waiting.length ? "" : "none";
+    $("#waiting").innerHTML = `<button class="wtoggle" data-wtoggle aria-expanded="${WAIT_OPEN}">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        <span><b>${waiting.length}</b> game${waiting.length === 1 ? "" : "s"} waiting for a campaign</span>
+        <span class="faint hide-sm" style="margin-left:auto">They join the queue by themselves when one starts</span></button>
+      <div class="wgrid">${waiting.map(n => `<span class="chip" title="${esc(n)}">${esc(n)}</span>`).join("")}</div>`;
+  }
+  $("#waiting").classList.toggle("open", WAIT_OPEN);
   $("#s-auto-sort").checked = !!S.settings.priority_auto_sort;
   const totalGames = list.length;
   if (rfilter === "live") list = list.filter(g => g.active);
   if (rfilter === "soon") list = list.filter(g => !g.active);
   $("#run-sub").textContent = totalGames ? `${totalGames} game${totalGames === 1 ? "" : "s"} · ${list.reduce((a, g) => a + g.left, 0)} drops to go` : "";
   $("#btn-expand").textContent = list.length && list.every(g => OPEN.has(g.name)) ? "Collapse all" : "Expand all";
-  const sig = JSON.stringify([rfilter, [...OPEN], list.map(g => [g.name, g.pos, g.pct, g.claimed, g.active, g.linked, g.cs.map(c => c.drops.map(d => [d.current, d.claimed]))]), S.muted && S.muted.channel]);
+  const W = (NOW && NOW.waits) || {}, mining = NOW && NOW.drop ? NOW.drop.game_name : (S.muted && S.muted.state === "watching" ? S.muted.game : "");
+  const sig = JSON.stringify([rfilter, [...OPEN], list.map(g => [g.name, g.pos, g.pct, g.claimed, g.active, g.linked, g.cs.map(c => c.drops.map(d => [d.current, d.claimed]))]), S.muted && S.muted.channel, W, mining]);
   if (sig === runSig) return; runSig = sig;
   if (!list.length) {
     const watched = S.games.filter(x => x.mode !== "off").length;
@@ -1231,19 +1261,28 @@ function renderRunning() {
     return;
   }
   $("#running").innerHTML = list.map((g, i) => {
+    const w = g.linked && g.active ? W[g.name] : null, isMining = g.linked && g.active && mining === g.name;
     const status = !g.linked ? `<a class="tag warn" href="${esc(g.link || "https://www.twitch.tv/drops/campaigns")}" target="_blank" onclick="event.stopPropagation()">Link account</a>`
+      : isMining ? `<span class="tag live">Mining now</span>`
+      : w ? `<span class="tag ${w.code === "starting" ? "live" : "soon"}">${esc(WAIT_TAG[w.code] || "Waiting")}</span>`
       : g.active ? `<span class="tag live">Live</span>` : `<span class="tag soon">Starts ${esc(until(g.starts))}</span>`;
+    const twUrl = (g.cs.find(c => c.active && c.campaign_url) || g.cs.find(c => c.campaign_url) || {}).campaign_url || "https://www.twitch.tv/drops/campaigns";
+    const chLinks = w && w.channels && w.channels.length
+      ? `<span>Channels it counts on: ${w.channels.map(ch => `<a href="https://www.twitch.tv/${esc(ch.login)}" target="_blank">${esc(ch.name)} ↗</a>`).join(" ")}</span>`
+      : `<a href="https://www.twitch.tv/directory/category/${esc(slug(g.name))}" target="_blank">All ${esc(g.name)} streams ↗</a>`;
     const body = g.cs.map(c => {
       const pending = c.drops.filter(d => !d.claimed);
       const nextIdx = pending.findIndex(d => d.current < d.required);
+      const nextNote = w && c.active ? (w.code === "offline" || w.code === "no_streams" ? "Up next · waiting for a live stream" : w.code === "queued" ? "Up next · waiting its turn" : "Up next") : "Up next";
       return `<div class="camp"><div class="ch"><b>${esc(c.name)}</b>
           ${c.active ? '<span class="tag live">Live</span>' : `<span class="tag soon">Starts ${esc(when(c.starts_at))}</span>`}
           <span class="faint">ends ${esc(when(c.ends_at))} · ${c.drops.filter(d => d.claimed).length}/${c.drops.length} claimed${c.subDrops ? ` · ${c.subDrops} sub drop${c.subDrops === 1 ? "" : "s"} (see Sub-only drops)` : ""}</span>
           ${c.active && c.linked ? `<button class="sm" style="margin-left:auto" data-watch="${esc(c.game_name)}">Watch muted</button>` : ""}</div>
+        <div class="clinks faint">${c.campaign_url ? `<a href="${esc(c.campaign_url)}" target="_blank">Campaign on Twitch ↗</a>` : ""}${chLinks}</div>
         ${pending.map((d, k) => {
           const p = d.required ? Math.min(100, Math.round(d.current / d.required * 100)) : 0;
           return `<div class="drop ${k === nextIdx ? "next" : ""}">${img(d.image, "art sq")}
-            <div><b>${esc(d.name)}</b><div class="faint">${!c.linked ? (k === nextIdx ? '<span style="color:var(--red)">Waiting for you to link your account</span>' : "Waiting for account link") : k === nextIdx ? "Up next" : "Queued"}</div></div>
+            <div><b>${esc(d.name)}</b><div class="faint">${!c.linked ? (k === nextIdx ? '<span style="color:var(--red)">Waiting for you to link your account</span>' : "Waiting for account link") : NOW && NOW.drop && NOW.drop.drop_id === d.id ? '<span style="color:var(--lime)">Mining now</span>' : k === nextIdx ? (isMining ? "Up next" : nextNote) : "Queued"}</div></div>
             <div class="bar hide-sm"><b style="width:${p}%"></b></div>
             <div class="faint hide-sm" style="text-align:right">${hm(d.current)} / ${hm(d.required)}</div></div>`;
         }).join("")}</div>`;
@@ -1252,11 +1291,13 @@ function renderRunning() {
       <div class="grow" draggable="true">
         <span class="prio" title="Drag to change the mining order"><svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="2" cy="3" r="1.5"/><circle cx="8" cy="3" r="1.5"/><circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="2" cy="13" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg><b>#${g.pos}</b></span>
         <div class="who">${img(boxArt(g.art), "art")}<div style="min-width:0"><b>${esc(g.name)}</b>
-          <div class="faint">${g.cs.length} campaign${g.cs.length === 1 ? "" : "s"} · ${g.left} drop${g.left === 1 ? "" : "s"} left · <span style="color:var(--violet)">${MODE_LABEL[g.mode]}</span>${!g.linked ? ' · <span style="color:var(--red)">skipped until you link your account</span>' : ""}</div></div></div>
+          <div class="faint">${g.cs.length} campaign${g.cs.length === 1 ? "" : "s"} · ${g.left} drop${g.left === 1 ? "" : "s"} left · <span style="color:var(--violet)">${MODE_LABEL[g.mode]}</span>${!g.linked ? ' · <span style="color:var(--red)">skipped until you link your account</span>' : ""}</div>
+          ${w ? `<div class="why ${w.code === "starting" ? "ok" : ""}" title="${esc(waitText(w))}">${w.code === "starting" ? "▶" : "⏸"} ${esc(waitText(w))}</div>` : ""}</div></div>
         <div class="hide-md hide-sm"><div class="bar"><b style="width:${g.pct}%"></b></div><div class="faint" style="margin-top:5px">${g.claimed}/${g.total} claimed · ${g.pct}%</div></div>
         <div class="hide-sm">${status}</div>
         <div class="hide-md hide-sm faint">${g.active ? "Ends in " + esc(until(g.ends)) : "Starts in " + esc(until(g.starts))}</div>
         <div class="gacts">
+          <a href="${esc(twUrl)}" target="_blank" title="Open this drop campaign on Twitch"><button class="round tw" aria-label="Open on Twitch"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M4.3 2 3 5.4V19.6h4.8V22h2.7l2.4-2.4h3.9L22 14.4V2H4.3zm15.9 11.6-3 3h-4.8l-2.6 2.6v-2.6H5.8V3.8h14.4v9.8zM16.6 7.1h1.8v5.2h-1.8V7.1zm-4.8 0h1.8v5.2h-1.8V7.1z"/></svg></button></a>
           <button class="round" data-move="-1" title="Mine this earlier" ${g.pos === 1 ? "disabled" : ""}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
           <button class="round" data-move="1" title="Mine this later" ${g.pos === RUN_ORDER.length ? "disabled" : ""}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
           <button class="round chev" aria-label="Expand"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -1267,7 +1308,21 @@ function renderRunning() {
   }).join("");
 }
 
-let RUN_ORDER = [];
+let RUN_ORDER = [], RUN_NAMES = [], waitSig = "", WAIT_OPEN = !!store("lr-waiting-open");
+// Why a running game isn't being mined right now (worked out by the server, see waits.py)
+const WAIT_TAG = { offline: "Channels offline", no_streams: "No live stream", queued: "Queued", starting: "Starting", paused: "Paused" };
+function orList(a) { return a.length < 2 ? a.join("") : a.slice(0, -1).join(", ") + " or " + a[a.length - 1]; }
+function waitText(w) {
+  if (!w) return "";
+  if (w.code === "offline") {
+    const n = (w.channels || []).map(c => c.name), last = w.last_live ? ` (last live ${ago(Date.parse(w.last_live) / 1000)})` : "";
+    return `Only counts on ${orList(n)}, ${n.length === 1 ? "which is" : n.length === 2 ? "both" : "all"} offline${last}.`;
+  }
+  return { no_streams: "Nobody is streaming it with drops on right now.",
+    queued: `Has live streams; waiting its turn after ${w.behind || "the game being mined"}.`,
+    starting: "Live streams found; the miner should start on it within a few minutes.",
+    paused: "The miner is paused." }[w.code] || "";
+}
 async function applyRunOrder(newRun) {
   // put the running games' new order into the full priority list, keeping everyone else's place
   const full = [...(S.settings.priority || [])];
@@ -1551,6 +1606,7 @@ async function loadNow() {
     const same = a && b && a.drop_id === b.drop_id && a.remaining_seconds === b.remaining_seconds;
     if (!same) nowAt = Date.now();
     NOW = next; renderNow();
+    if (S) renderRunning();  // the reasons in Running drops come from /api/now (redraws only on change)
   } catch {}
 }
 function mmss(sec) {
@@ -1580,8 +1636,13 @@ function renderNow() {
       <div class="nmeta"><span>${nd.current} / ${nd.required} minutes</span><span>about ${hm(nd.required - nd.current)} to go · updates every 2 min</span></div>`
       : `<div class="nidle">Watching ${esc(mu.channel)} for ${esc(mu.game)}.</div>`}`;
   } else if (!d) {
-    box.innerHTML = `<h2>Now mining</h2><div class="nidle"><span>${NOW.paused ? '<span class="tag soon">Paused</span> ' : ""}Not mining a drop right now.</span>
-      <span class="faint">${esc(NOW.status || "Waiting for a live campaign for one of your games.")}</span></div>`;
+    // say why: the first game in the mining order that's waiting, plus how many more are
+    const W = NOW.waits || {}, names = RUN_NAMES.filter(n => W[n]), top = names[0];
+    const why = top ? `<div class="nwhy"><b>${esc(top)}</b> <span class="faint">#${RUN_NAMES.indexOf(top) + 1} in your mining order</span>
+        <div>${esc(waitText(W[top]))}</div></div>
+      <span class="faint">${W[top].code === "paused" ? "Resume the miner to carry on." : "It starts by itself the moment a stream goes live, and any other game with a live stream gets mined meanwhile."}${names.length > 1 ? ` ${names.length - 1} more game${names.length === 2 ? " is" : "s are"} waiting too (see Running drops).` : ""}</span>`
+      : `<span class="faint">${esc(NOW.status && NOW.status !== "Idle" ? NOW.status : "Waiting for a live campaign for one of your games.")}</span>`;
+    box.innerHTML = `<h2>Now mining</h2><div class="nidle"><span>${NOW.paused ? '<span class="tag soon">Paused</span> ' : ""}Not mining a drop right now.</span>${why}</div>`;
   } else {
     box.innerHTML = `<h2>Now mining <span class="tag live">Live</span><span class="right faint">${esc(NOW.status || "")}</span></h2>
       <div class="ndrop">${img(d.image || boxArt(d.box_art, 92, 92), "rimg", d.drop_name)}
@@ -1646,6 +1707,8 @@ document.addEventListener("click", async e => {
   if (st) { toggleStreams(st.dataset.streams, st.dataset.gameName); return; }
   const sa = e.target.closest("[data-streams-all]");
   if (sa) { const s = STREAMS[sa.dataset.streamsAll]; if (s) { s.all = true; STREAMS_V++; subsSig = ""; renderSubs(); } return; }
+  const wt = e.target.closest("[data-wtoggle]");
+  if (wt) { WAIT_OPEN = !WAIT_OPEN; store("lr-waiting-open", WAIT_OPEN); $("#waiting").classList.toggle("open", WAIT_OPEN); wt.setAttribute("aria-expanded", WAIT_OPEN); return; }
   const row = e.target.closest(".grow");
   if (row && !e.target.closest("a")) {
     const name = row.parentElement.dataset.game;

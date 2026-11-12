@@ -25,6 +25,7 @@ Docs-only changes (README, CHANGELOG, this file) don't bump `VERSION`, so users 
 - `START.bat`: first-run setup (Python, venv, packages), then `launcher.py --prepare` (visible) and `pythonw launcher.py` (tray, no console).
 - `app/lootradar.py`: Flask server on 127.0.0.1:5577, scheduler, API. `app/web/index.html`: the whole dashboard (single file).
 - `app/checks.py`: drop campaigns, alerts, Steam news, mining priority, PC-scan merge. `app/gamescan.py`: other launchers.
+- `app/waits.py`: why a running drop isn't being mined (channel-only campaign offline, no streams, queued), served in `/api/now` as `waits`.
 - `app/minerctl.py` / `miner.py` / `miner_bridge.py` / `memguard.py`: the built-in Twitch Drops Miner (SimpliAj/twitchdropsminer, MIT): install/update, API, Twitch login hand-off, memory guard.
 - `app/watcher.py`: muted-stream mode (plain window of the default Chrome-type browser, else Edge, over DevTools; own profile per browser in `data/browser-profile[-brave]`; no automation flags).
 - Personal data lives in `app/data` (gitignored). Never commit it.
