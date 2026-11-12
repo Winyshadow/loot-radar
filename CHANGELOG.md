@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.7.1 (2026-11-12)
+
+- Key-shop prices on the Deals page now have a **DRM?** marker. GG.deals doesn't say which platform the cheapest key is for, and it's sometimes an Xbox or other non-Steam key, so check it says Steam before buying. Hover the marker for the explanation.
+- The key-shop tips box now lists three checks: Steam key, game key (not an account), and region. Discord deal pings say the same.
+
 ## 1.7.0 (2026-11-12)
 
 - **Why isn't it mining?** When a running drop isn't being mined, Loot Radar now says why, under the game in Running drops and in the Now mining card. For example: "Only counts on Warframe or WarframeInternational, both offline (last live 10 h ago)", "Nobody is streaming it with drops on right now", or "Waiting its turn after Apex Legends". The status tag says the same in short: Channels offline, No live stream, Queued, Starting or Mining now.
