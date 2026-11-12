@@ -4,9 +4,10 @@ Every 6 hours (or when you press "Check deals now") it:
   * reads your Steam wishlist (IWishlistService, needs no key; the wishlist must be visible),
   * asks the Steam store for each game's price in your own currency,
   * asks GG.deals (official Prices API, free for hobby use, "Prices by GG.deals" credit required)
-    for the cheapest official store and the cheapest key shop, plus their all-time lows,
-  * and pings Discord when a game is at least N% off on Steam, or has just dropped to its
-    lowest price ever. The same deal is never pinged twice; a further drop pings again.
+    for the cheapest key shop and its all-time low (GG.deals also sends the cheapest official
+    store; it's kept in the data but not shown or pinged, since Steam's own price covers that),
+  * and pings Discord when a game is at least N% off on Steam, or the key-shop price has just
+    dropped to its lowest ever. The same deal is never pinged twice; a further drop pings again.
 
 Prices are shown in each source's own currency. GG.deals has no South Africa region, so its prices
 also get an estimate in your currency (your Steam currency, or the one picked in Settings), using the
@@ -258,26 +259,22 @@ def reasons(row: dict, min_discount: int, keyshops: bool, prev: dict | None) -> 
     if (s.get("discount") or 0) >= min_discount:
         out.append("steam_sale")
     on_sale = (s.get("discount") or 0) > 0
-    for cur, low, kind in (("retail", "low_retail", "store_low"), ("keyshop", "low_keyshop", "key_low")):
-        if kind == "key_low" and not keyshops:
-            continue
-        now, ever, before = g.get(cur), g.get(low), prev.get(cur)
-        if now is None or ever is None or now > ever:
-            continue
-        if on_sale or (before is not None and now < before):
-            out.append(kind)
+    if keyshops:  # the official-store price isn't used for pings (Steam's own price covers that)
+        now, ever, before = g.get("keyshop"), g.get("low_keyshop"), prev.get("keyshop")
+        if now is not None and ever is not None and now <= ever and (on_sale or (before is not None and now < before)):
+            out.append("key_low")
     return out
 
 
 # GG.deals only tells us the cheapest key-shop price, not which platform (DRM) or region that key
 # is for, so every key-shop price carries this reminder.
-KEY_DRM_TIP = ("GG.deals doesn't say which platform this key is for. The cheapest key is sometimes an Xbox "
-               "or other non-Steam key, so check it says **Steam** before buying.")
-KEY_REGION_TIP = (KEY_DRM_TIP + " "
-                  "Make sure it's a **game key** (\"Steam Key\" / \"CD Key\"), not an **account** or \"gift\": "
-                  "accounts aren't yours and can be taken back. Then check the key's region: **GLOBAL** or **ROW** "
-                  "(Rest of World) keys work in South Africa; EU-, US-, UK-, Asia- or RU/CIS-only keys may not "
-                  "activate on your Steam account. \"All prices on GG.deals\" lists each offer.")
+KEY_REGION_TIP = ("**DRM:** GG.deals doesn't say which platform the cheapest key is for, and it's sometimes an "
+                  "Xbox or other non-Steam key, so check it says **Steam**.\n"
+                  "**Region:** **GLOBAL** or **ROW** (Rest of World) keys work in South Africa; EU-, US-, UK-, "
+                  "Asia- or RU/CIS-only keys may not activate on your Steam account.\n"
+                  "**Account/key:** buy a **game key** (\"Steam Key\" / \"CD Key\"), not an **account** or "
+                  "\"gift\": accounts aren't yours and can be taken back.\n"
+                  "\"All prices on GG.deals\" lists each offer.")
 
 REASON_TEXT = {
     "steam_sale": "big Steam sale",
@@ -295,7 +292,6 @@ def should_ping(why: list[str], row: dict, last: dict | None) -> bool:
     if set(why) - set(last.get("why") or []):
         return True
     for key, now in (("steam", (row.get("steam") or {}).get("price")),
-                     ("retail", (row.get("gg") or {}).get("retail")),
                      ("keyshop", (row.get("gg") or {}).get("keyshop"))):
         before = (last.get("prices") or {}).get(key)
         if now is not None and before and now <= before * 0.97:
@@ -321,13 +317,10 @@ def deal_embed(row: dict, why: list[str], keyshops: bool, fx: dict | None = None
         if s.get("discount"):
             val = f"**{val}** ~~{s.get('initial_text') or _money(s.get('initial'), s.get('currency', ''))}~~ (−{s['discount']}%)"
         fields.append({"name": "Steam", "value": val, "inline": True})
-    if g.get("retail") is not None:
-        low = " 🏆 lowest ever" if g.get("low_retail") is not None and g["retail"] <= g["low_retail"] else ""
-        fields.append({"name": "Best official store", "value": gg_money(g["retail"]) + low, "inline": True})
     if keyshops and g.get("keyshop") is not None:
         low = " 🏆 lowest ever" if g.get("low_keyshop") is not None and g["keyshop"] <= g["low_keyshop"] else ""
-        fields.append({"name": "Key shop (reseller)", "value": gg_money(g["keyshop"]) + low + "\nDRM? check it's Steam", "inline": True})
-        fields.append({"name": "⚠️ Before buying a key", "value": KEY_REGION_TIP, "inline": False})
+        fields.append({"name": "Key shop (reseller)", "value": gg_money(g["keyshop"]) + low, "inline": True})
+        fields.append({"name": "⚠️ Before buying a key, check DRM · region · account/key", "value": KEY_REGION_TIP, "inline": False})
     links = [f"[Steam page]({row['store_url']})"] + ([f"[All prices on GG.deals]({g['url']})"] if g.get("url") else [])
     fields.append({"name": "Links", "value": " · ".join(links), "inline": False})
     embed = {
@@ -465,8 +458,8 @@ def test_ping() -> bool:
     row = {"appid": 1245620, "name": "ELDEN RING (test message)", "store_url": f"{STORE}/app/1245620/", "image": "",
            "steam": {"price": 424.5, "initial": 849.0, "discount": 50, "currency": "ZAR", "text": "R 424.50",
                      "initial_text": "R 849.00"},
-           "gg": {"retail": 29.99, "keyshop": 24.10, "low_retail": 29.99, "low_keyshop": 22.0, "currency": "USD",
+           "gg": {"retail": 29.99, "keyshop": 24.10, "low_retail": 29.99, "low_keyshop": 24.10, "currency": "USD",
                   "url": "https://gg.deals/"}}
     fx = fx_for({"rows": [row]}, cfg)
-    return notify.send(hook, [deal_embed(row, ["steam_sale", "store_low"], cfg.get("deals_keyshops", True), fx)],
+    return notify.send(hook, [deal_embed(row, ["steam_sale", "key_low"], cfg.get("deals_keyshops", True), fx)],
                        content="Test from Loot Radar: this is what a deal ping looks like.")

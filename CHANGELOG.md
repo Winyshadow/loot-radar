@@ -6,6 +6,12 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.7.2 (2026-11-12)
+
+- Tidier Deals page: the **Best official store** column is gone, so it's just **Steam** and the **Key shop**. Steam's own rand price already covers official stores, and the dollar price next to it mostly added clutter. Discord no longer pings for official-store lowest prices either; Steam sales and key-shop lowest prices still ping.
+- The key-shop price is calmer too: the "key shop" and "DRM?" tags are gone, and "lowest ever" only shows when the price isn't at its lowest (the **Lowest ever** tag covers that). One line underneath says **⚠️ Check DRM · region · account/key**; hover it for what to check.
+- The tips box at the top and the Discord pings list the same three checks in the same order.
+
 ## 1.7.1 (2026-11-12)
 
 - Key-shop prices on the Deals page now have a **DRM?** marker. GG.deals doesn't say which platform the cheapest key is for, and it's sometimes an Xbox or other non-Steam key, so check it says Steam before buying. Hover the marker for the explanation.
