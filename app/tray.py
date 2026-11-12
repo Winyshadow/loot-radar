@@ -10,7 +10,8 @@ import threading
 import webbrowser
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+import paths
+
 _icon = None
 
 
@@ -34,16 +35,30 @@ def stop() -> None:
         _icon = None
 
 
-def run(url: str, on_quit, on_restart, miner_url: str, log_path: Path, first_time: bool) -> None:
-    """Show the tray icon. Blocks until Quit/Restart (run it on the main thread)."""
+def notify(text: str) -> None:
+    """A Windows notification from the tray icon (ignored if it isn't showing)."""
+    try:
+        if _icon is not None:
+            _icon.notify(text, "Loot Radar")
+    except Exception:
+        pass
+
+
+def run(url: str, on_quit, on_restart, miner_url: str, log_path: Path, first_time: bool, on_open=None) -> None:
+    """Show the tray icon. Blocks until Quit/Restart (the main thread, or a thread of its own
+    when Loot Radar's window needs the main thread). on_open: what "Open Loot Radar" does
+    (default: the dashboard in your browser)."""
     global _icon
     import pystray
     from PIL import Image
 
-    image = Image.open(HERE / "web" / "icon.png")
+    image = Image.open(paths.WEB_DIR / "icon.png")
 
     def open_dashboard(icon=None, item=None):
-        webbrowser.open(url)
+        if on_open:
+            on_open()
+        else:
+            webbrowser.open(url)
 
     def open_miner(icon=None, item=None):
         webbrowser.open(miner_url)

@@ -1,6 +1,6 @@
 """Loot Radar — watches your Steam games for Twitch drops and news, pings Discord, and collects drops.
 
-Run with START.bat. Dashboard: http://127.0.0.1:5577
+Run with START.bat (zip copy) or LootRadar.exe (installed app). Dashboard: http://127.0.0.1:5577
 """
 
 from __future__ import annotations
@@ -23,14 +23,17 @@ import memguard
 import minerctl
 import updates
 import notify
+import paths
 import waits
 import phone
 import steam
 import store
+import window
 from miner import Miner, MinerError
 
-HERE = Path(__file__).resolve().parent
+WEB = paths.WEB_DIR
 PORT = 5577
+URL = f"http://127.0.0.1:{PORT}"
 
 app = Flask(__name__, static_folder=None)
 watcher = None  # MutedWatcher, created at startup
@@ -162,14 +165,31 @@ def api_phone_qr():
 
 @app.get("/")
 def index():
-    return send_from_directory(HERE / "web", "index.html")
+    return send_from_directory(WEB, "index.html")
 
 
 @app.get("/<path:name>.<ext>")
 def static_file(name, ext):
     if ext not in ("png", "ico"):
         return _err("Not found.", 404)
-    return send_from_directory(HERE / "web", f"{name}.{ext}")
+    return send_from_directory(WEB, f"{name}.{ext}")
+
+
+def show_dashboard() -> None:
+    """Bring up the dashboard: Loot Radar's own window, or a browser tab."""
+    if window.active():
+        window.show()
+    else:
+        webbrowser.open(URL)
+
+
+@app.post("/api/show")
+def api_show():
+    """Starting Loot Radar again while it's running (shortcut, Start menu) lands here."""
+    if phone.is_phone_request(request):
+        return _err("Only on the PC.", 403)
+    show_dashboard()
+    return jsonify({"ok": True})
 
 
 _account = {"at": 0.0, "value": {"state": "unknown", "user": "", "status": ""}}
@@ -223,6 +243,8 @@ def api_state():
         "last_check": state.get("last_check", 0),
         "library_updated": state.get("library_updated", 0),
         "version": updates.current_version(),
+        "app_mode": paths.APP_MODE,
+        "own_window": window.active(),
         "updates": state.get("updates") or {},
         "update_job": updates.job,
         "miner_job": minerctl.job,
@@ -355,7 +377,7 @@ def api_settings():
             except (TypeError, ValueError):
                 pass
     for key in ("auto_start_miner", "auto_update_miner", "alert_library_drops", "priority_auto_sort",
-                "steam_skipped", "discord_skipped", "setup_done"):
+                "steam_skipped", "discord_skipped", "setup_done", "use_browser", "migrated_note_done"):
         if key in data:
             cfg[key] = bool(data[key])
     if "sync_miner_webhook" in data:
@@ -615,12 +637,24 @@ def api_updates_apply():
     return jsonify({"ok": True})
 
 
-def _restart_for_update():
-    """Called after a self-update: close the muted-mode browser, then exit with the code that
-    tells launcher.py to install any new packages and start the new version."""
+@app.post("/api/updates/switch")
+def api_updates_switch():
+    """Zip copy: move to the installed app (copies settings and the miner, then opens its setup)."""
+    if phone.is_phone_request(request):
+        return _err("That can only be done on the PC.", 403)
+    if paths.FROZEN:
+        return _err("This is already the installed app.")
+    if not updates.switch_to_installer_async(_restart_for_update):
+        return _err("An update is already running.")
+    return jsonify({"ok": True})
+
+
+def _restart_for_update(code: int = updates.RESTART_CODE):
+    """Called after an update: close the muted-mode browser, then exit. Code 3 tells launcher.py
+    to install any new packages and start the new version; 0 means a setup file takes over."""
     def go():
         time.sleep(1.5)  # let the dashboard see the "restarting" message
-        _shutdown(False, updates.RESTART_CODE)
+        _shutdown(False, code)
     threading.Thread(target=go, daemon=True).start()
 
 
@@ -727,7 +761,7 @@ def scheduler():
         time.sleep(30)
 
 
-LOG_PATH = store.DATA_DIR / "lootradar.log"
+LOG_PATH = paths.LOG_PATH
 
 
 def _log_to_file() -> None:
@@ -778,17 +812,23 @@ def _serve() -> None:
 def main():
     global watcher
     parser = argparse.ArgumentParser()
-    parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--no-browser", action="store_true", help="start quietly in the tray")
     parser.add_argument("--no-muted", action="store_true", help="disable muted-stream mode (testing)")
     parser.add_argument("--console", action="store_true", help="log to this window, no tray icon")
-    args = parser.parse_args()
+    parser.add_argument("--run", action="store_true", help=argparse.SUPPRESS)        # installed app: see launcher.py
+    parser.add_argument("--restarted", action="store_true", help=argparse.SUPPRESS)  # after a restart from the tray
+    args, _ = parser.parse_known_args()
 
-    url = f"http://127.0.0.1:{PORT}"
+    url = URL
     store.DATA_DIR.mkdir(parents=True, exist_ok=True)
     if _already_running():
-        # START.bat / the shortcut while Loot Radar is already running: just show the dashboard.
+        # START.bat / the shortcut / the Start menu while Loot Radar is already running: show it.
         if not args.no_browser:
-            webbrowser.open(url)
+            try:
+                import requests
+                requests.post(url + "/api/show", timeout=5).raise_for_status()
+            except Exception:  # an older Loot Radar is running
+                webbrowser.open(url)
         return 0
     if not args.console:
         _log_to_file()
@@ -804,11 +844,15 @@ def main():
         from watcher import MutedWatcher
         watcher = MutedWatcher(store.DATA_DIR / "browser-profile")
 
-    store.log(f"Loot Radar {updates.current_version()} started.")
+    cfg = store.load_config()
+    # The installed app shows the dashboard in its own window (unless you chose your browser).
+    use_window = paths.FROZEN and not args.console and not cfg.get("use_browser") and window.available()
+    store.log(f"Loot Radar {updates.current_version()} started"
+              + (" (installed app)." if paths.FROZEN else "."))
     autostart.refresh_path()
     _bg(minerctl.autostart)
     threading.Thread(target=scheduler, name="scheduler", daemon=True).start()
-    if not args.no_browser:
+    if not args.no_browser and not use_window and not args.restarted:  # after a restart the tab is still open
         threading.Timer(1.5, lambda: webbrowser.open(url)).start()
 
     phone.sync(app)  # phone access, if you switched it on (its own server, port 5578)
@@ -823,10 +867,30 @@ def main():
     first = not state.get("tray_tip_shown")
     if first:
         store.patch_state(tray_tip_shown=True)
-    cfg = store.load_config()
-    tray.run(url, on_quit=lambda stop_miner: _shutdown(stop_miner, 0),
-             on_restart=lambda: _shutdown(False, updates.RESTART_CODE),
-             miner_url=cfg.get("miner_url") or "http://127.0.0.1:8080", log_path=LOG_PATH, first_time=first)
+    tray_args = dict(on_quit=lambda stop_miner: _shutdown(stop_miner, 0),
+                     on_restart=lambda: _shutdown(False, updates.RESTART_CODE),
+                     miner_url=cfg.get("miner_url") or "http://127.0.0.1:8080", log_path=LOG_PATH,
+                     first_time=first and not use_window, on_open=show_dashboard)
+    if not use_window:
+        tray.run(url, **tray_args)
+        return 0
+
+    # Own window: it needs the main thread, so the tray icon gets a thread of its own.
+    tray_thread = threading.Thread(target=tray.run, args=(url,), kwargs=tray_args, name="tray", daemon=True)
+    tray_thread.start()
+
+    def first_close():
+        if not store.load_state().get("close_tip_shown"):
+            store.patch_state(close_tip_shown=True)
+            tray.notify("Loot Radar keeps collecting drops in the tray. Double-click its icon to open it "
+                        "again; right-click it to quit.")
+    try:
+        window.run(url, hidden=args.no_browser, storage=str(store.DATA_DIR / "webview"), on_first_close=first_close)
+    except Exception as exc:  # no WebView2 on this PC: fall back to the browser
+        store.log(f"Couldn't open Loot Radar's own window ({exc}); using your browser instead.", "warn")
+        if not args.no_browser:
+            webbrowser.open(url)
+        tray_thread.join()
     return 0
 
 

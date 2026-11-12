@@ -486,6 +486,7 @@
       <b id="setup-title">Finish setting up</b><span class="muted" id="setup-missing"></span>
       <a href="#/settings" style="margin-left:auto"><button class="sm">Open settings</button></a>
     </div>
+    <div class="banner pc-only" id="moved-banner" style="display:none"></div>
     <div class="banner warn" id="link-banner" style="display:none"></div>
     <div class="banner violet" id="muted-banner" style="display:none"></div>
     <div class="banner" id="update-banner" style="display:none"></div>
@@ -727,6 +728,7 @@
       <div class="sbody">
         <div class="row" style="justify-content:space-between; padding:2px 18px 10px"><span class="muted" id="upd-checked"></span><button class="sm" id="btn-upd-check">Check for updates</button></div>
         <div class="xscroll"><table><thead><tr><th>App</th><th>You have</th><th>Newest</th><th></th></tr></thead><tbody id="upd-rows"></tbody></table></div>
+        <div class="banner pc-only" id="upd-switch" style="display:none; margin:12px 18px 0"></div>
         <div style="padding:12px 18px 16px; display:grid; gap:8px">
           <label class="check-line"><input type="checkbox" id="s-auto-update"> Install new miner versions automatically</label>
           <div class="faint">Loot Radar checks GitHub every 6 hours, shows new versions here and pings your Discord.</div>
@@ -845,6 +847,7 @@
       <div class="grid2">
         <div style="grid-column:1/-1; display:grid; gap:8px">
           <label class="check-line pc-only"><input type="checkbox" id="s-win-start"> Start Loot Radar when I sign in to Windows <span class="faint" style="font-size:12px">(quietly in the tray, saved as soon as you tick it)</span></label>
+          <label class="check-line pc-only" id="use-browser-line" style="display:none"><input type="checkbox" id="s-use-browser"> Open the dashboard in my browser instead of Loot Radar's own window <span class="faint" style="font-size:12px">(after a restart: tray icon → Restart)</span></label>
           <label class="check-line"><input type="checkbox" id="s-auto-start"> Start the built-in miner when Loot Radar starts</label>
           <label class="check-line"><input type="checkbox" id="s-lib-alerts"> Ping me about drops for games I have but haven't set up (installed from any launcher, or 1h+ on Steam)</label></div>
         <div class="field"><label>Steam news alerts</label>
@@ -1048,7 +1051,7 @@ function renderPhone() {
         <div class="pinbox">${esc(p.pin)}</div>
         <ol class="phone-steps" start="3">
           <li><b>Add it to your home screen</b> so it opens like an app. iPhone (Safari): Share → <b>Add to Home Screen</b>. Android (Chrome): ⋮ → <b>Add to Home screen</b>.</li>
-          <li>If the phone can't connect: Windows may have asked whether to let <b>Python</b> use the network. Allow it on <b>Private networks</b> (Windows Security → Firewall → Allow an app).</li>
+          <li>If the phone can't connect: Windows may have asked whether to let <b>${fwApp()}</b> use the network. Allow it on <b>Private networks</b> (Windows Security → Firewall → Allow an app).</li>
         </ol>
         <div class="row"><button class="sm" data-act="phone-new-pin">New PIN (signs phones out)</button></div>
       </div>
@@ -1091,14 +1094,15 @@ function renderTailscale() {
   const fw = TS.firewall;
   rows.push(!TS.signed_in || !fw ? row("wait", "Windows Firewall lets your phone in", "Checked once this PC is signed in.")
     : fw.state === "ok" ? row("ok", "Windows Firewall lets your phone in", esc(fw.note))
-    : fw.state === "blocked" ? row("bad", "Windows Firewall is blocking it", `${esc(fw.note)} To fix: Start → type <b>Allow an app through Windows Firewall</b> → <b>Change settings</b> → find <b>pythonw.exe</b> (or Python) → tick <b>${esc(fw.profile || "Private")}</b> → <b>OK</b>. Then press Check again.`)
-    : row("warn", "Couldn't check Windows Firewall", esc(fw.note) + " If the phone can't connect, allow Python on Private networks (Start → Allow an app through Windows Firewall)."));
+    : fw.state === "blocked" ? row("bad", "Windows Firewall is blocking it", `${esc(fw.note)} To fix: Start → type <b>Allow an app through Windows Firewall</b> → <b>Change settings</b> → find <b>${S && S.app_mode === "installed" ? "LootRadar.exe" : "pythonw.exe</b> (or <b>Python</b>)"}</b> → tick <b>${esc(fw.profile || "Private")}</b> → <b>OK</b>. Then press Check again.`)
+    : row("warn", "Couldn't check Windows Firewall", esc(fw.note) + ` If the phone can't connect, allow ${fwApp()} on Private networks (Start → Allow an app through Windows Firewall).`));
   const ready = TS.signed_in && on && fw && fw.state === "ok";
   el.innerHTML = `<ol class="ts-list">${rows.join("")}</ol>` + (ready
     ? `<div class="ts-ready"><b>All set.</b> Click <b>Tailscale (anywhere)</b> at the top of this card and scan that QR code, then add it to your home screen: it works at home and away. To test, turn Wi-Fi off on your phone and open it.
         <div class="row" style="margin-top:8px"><button class="sm lime" data-act="ts-show-qr">Show the Tailscale QR code</button></div></div>`
     : `<div class="faint" style="margin-top:8px">Your PC also has to be on (not asleep) with Loot Radar running.</div>`);
 }
+const fwApp = () => S && S.app_mode === "installed" ? "Loot Radar" : "Python";  // what Windows Firewall calls it
 async function setPhone(body, okMsg) {
   try { PHONE = await api("/api/phone/config", body); renderPhone(); if (okMsg) toast(okMsg, "ok"); }
   catch (e) { toast(e.message, "bad"); loadPhone(); }
@@ -1603,6 +1607,17 @@ function renderUpdates() {
     : mn.available ? `<button class="lime sm" data-act="miner-install">Update miner</button>` : "";
   $("#upd-rows").innerHTML = row("Loot Radar", lr.page || "#", S.version, lr.latest, lr.available, lr.error, lrBtn)
     + row("Drop miner", mn.page || "https://github.com/SimpliAj/twitchdropsminer/releases", mn.current, mn.latest, mn.available, mn.error, mnBtn);
+  // Zip copy: offer the installed app once a release has its setup file.
+  const inst = u.installer || {}, sw = $("#upd-switch"), canSwitch = S.app_mode === "zip" && !!inst.url && !S.remote;
+  sw.style.display = canSwitch ? "" : "none";
+  if (canSwitch) sw.innerHTML = `<b>New: Loot Radar as a normal Windows app</b><span class="muted">Installs like any program, opens in its own window and updates by itself. Your settings and the miner come along.</span>`
+    + `<button class="lime sm" data-act="lr-switch" style="margin-left:auto" ${uj.state === "working" ? "disabled" : ""}>Switch to the installer version</button>`;
+  $("#use-browser-line").style.display = S.app_mode === "installed" ? "" : "none";
+  $("#s-use-browser").checked = !!S.settings.use_browser;
+  const mv = $("#moved-banner"), moved = S.settings.migrated_from && !S.settings.migrated_note_done && !S.remote;
+  mv.style.display = moved ? "" : "none";
+  if (moved) mv.innerHTML = `<b>You're on the installed Loot Radar now</b><span class="muted">Your settings and the miner came along. The old folder isn't used any more; once everything looks right you can delete it: <b>${esc(S.settings.migrated_from)}</b></span>`
+    + `<button class="sm" data-act="moved-ok" style="margin-left:auto">Got it</button>`;
   const ub = $("#update-banner"), items = [];
   if (uj.state === "working" || uj.state === "done") items.push(`<b>${esc(uj.note)}</b>`);
   else {
@@ -1980,6 +1995,11 @@ document.addEventListener("click", async e => {
     } else if (b.id === "btn-upd-check") { await api("/api/updates/check", {}); toast("Checking GitHub for updates…"); setTimeout(refresh, 5000);
     } else if (b.dataset.act === "lr-update") {
       await api("/api/updates/apply", {}); toast("Updating Loot Radar — it restarts by itself in a moment.", "ok"); waitForRestart();
+    } else if (b.dataset.act === "lr-switch") {
+      if (!confirm("Switch to the installer version?\n\nLoot Radar downloads LootRadarSetup.exe from GitHub, copies your settings and the drop miner to the new place, then opens the installer and closes this copy.\n\nWindows may warn that the installer is from an unknown publisher: click More info → Run anyway.\n\nThis folder stays as it is; delete it once the new one works.")) return;
+      await api("/api/updates/switch", {}); toast("Downloading the installer… it opens in a moment.", "ok");
+    } else if (b.dataset.act === "moved-ok") {
+      await api("/api/settings", { migrated_note_done: true }); S.settings.migrated_note_done = true;
     } else if (b.id === "btn-clear-all") {
       const r = await api("/api/completed/clear", {}); toast(`Cleared ${r.cleared} completed drop${r.cleared === 1 ? "" : "s"}.`, "ok");
     } else if (b.id === "btn-clear-old") {
@@ -2042,6 +2062,13 @@ document.addEventListener("change", async e => {
     const key = e.target.id === "s-skip-steam" ? "steam_skipped" : "discord_skipped", on = e.target.checked;
     try { await api("/api/settings", { [key]: on }); S.settings[key] = on; render();
           toast(on ? "Skipped. You can connect it any time." : "Reminder back on.", "ok"); }
+    catch (err) { e.target.checked = !on; toast(err.message, "bad"); }
+    return;
+  }
+  if (e.target.id === "s-use-browser") {
+    const on = e.target.checked;
+    try { await api("/api/settings", { use_browser: on }); S.settings.use_browser = on;
+          toast((on ? "Your browser it is." : "Loot Radar's own window it is.") + " Takes effect after a restart (tray icon → Restart).", "ok"); }
     catch (err) { e.target.checked = !on; toast(err.message, "bad"); }
     return;
   }

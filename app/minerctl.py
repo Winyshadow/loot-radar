@@ -1,7 +1,8 @@
 """Built-in drop miner: install, update, start and stop Twitch Drops Miner from inside Loot Radar.
 
 The miner (github.com/SimpliAj/twitchdropsminer, MIT licence) is downloaded from its official
-GitHub release into  <Loot Radar>/miner/TwitchDropsMiner/  the first time you press Install.
+GitHub release into  miner/TwitchDropsMiner/  the first time you press Install (next to START.bat
+for the zip copy, in %LOCALAPPDATA%\\Loot Radar for the installed app; see paths.py).
 Its Twitch login and settings live in %APPDATA%\\TwitchDropsMiner, so they survive updates and
 are shared with any copy you ran before.
 """
@@ -18,10 +19,10 @@ from pathlib import Path
 
 import requests
 
+import paths
 import store
 
-ROOT = Path(__file__).resolve().parent.parent
-MINER_DIR = ROOT / "miner"
+MINER_DIR = paths.MINER_DIR
 APP_DIR = MINER_DIR / "TwitchDropsMiner"
 EXE = APP_DIR / "TwitchDropsMiner.exe"
 INFO = MINER_DIR / "installed.json"

@@ -1,0 +1,4 @@
+# Extra Python packages for building the installed app (on top of app/requirements.txt).
+# Pinned, so every build packs the same thing.
+pyinstaller==6.22.3
+pywebview==6.2.1

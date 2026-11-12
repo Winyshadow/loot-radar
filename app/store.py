@@ -9,7 +9,9 @@ import threading
 import time
 from pathlib import Path
 
-DATA_DIR = Path(__file__).resolve().parent / "data"
+import paths
+
+DATA_DIR = paths.DATA_DIR
 CONFIG_PATH = DATA_DIR / "config.json"
 STATE_PATH = DATA_DIR / "state.json"
 

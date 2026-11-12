@@ -24,6 +24,7 @@ import sys
 import threading
 import time
 
+import paths
 import store
 
 PORT = 5578
@@ -174,6 +175,7 @@ $rules = Get-NetFirewallApplicationFilter | Where-Object { $_.Program -and ([Env
         data = json.loads(r.stdout.strip() or "{}")
     except Exception as exc:
         return {"state": "unknown", "note": f"Couldn't read the firewall settings ({exc.__class__.__name__})."}
+    who = "Loot Radar" if paths.FROZEN else "Python"  # the program Windows Firewall lists
     prof, rules = data.get("profile") or "", data.get("rules") or []
     if isinstance(rules, dict):
         rules = [rules]
@@ -183,10 +185,10 @@ $rules = Get-NetFirewallApplicationFilter | Where-Object { $_.Program -and ([Env
         return {"state": "ok", "profile": prof, "note": f"Windows Firewall is off for {prof} networks."}
     covers = lambda r: r.get("profile") in ("Any", "") or prof in r.get("profile", "")
     if any(r.get("action") == "Block" and covers(r) for r in rules):
-        return {"state": "blocked", "profile": prof, "note": f"A firewall rule blocks Python on {prof} networks."}
+        return {"state": "blocked", "profile": prof, "note": f"A firewall rule blocks {who} on {prof} networks."}
     if any(r.get("action") == "Allow" and covers(r) for r in rules):
-        return {"state": "ok", "profile": prof, "note": f"Python is allowed on {prof} networks."}
-    return {"state": "blocked", "profile": prof, "note": f"Python isn't allowed on {prof} networks yet (Tailscale counts as {prof})."}
+        return {"state": "ok", "profile": prof, "note": f"{who} is allowed on {prof} networks."}
+    return {"state": "blocked", "profile": prof, "note": f"{who} isn't allowed on {prof} networks yet (Tailscale counts as {prof})."}
 
 
 def tailscale_status(force: bool = False) -> dict:

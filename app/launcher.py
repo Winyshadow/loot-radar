@@ -6,6 +6,9 @@ pythonw launcher.py   (no window), which:
   * starts lootradar.py and restarts it when an update finishes (exit code 3),
   * writes everything, including crashes, to app/data/lootradar.log,
   * shows a message box if Loot Radar fails to start.
+
+The installed app (LootRadar.exe) works the same way, with no Python or packages to install:
+LootRadar.exe is this launcher, and it starts   LootRadar.exe --run   for Loot Radar itself.
 """
 
 import hashlib
@@ -16,13 +19,16 @@ import threading
 import time
 from pathlib import Path
 
+import paths
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 RESTART_CODE = 3
 REQ = HERE / "requirements.txt"
 VENV = HERE / ".venv"
 REQ_STAMP = VENV / "lootradar-requirements.sha1"
-LOG = HERE / "data" / "lootradar.log"
+LOG = paths.LOG_PATH
+AGAIN = "start Loot Radar again" if paths.FROZEN else "run START.bat again"
 PORT = 5577
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
@@ -44,7 +50,7 @@ def packages_ok() -> bool:
 
 def ensure_packages(visible: bool) -> bool:
     """Install requirements.txt if it changed since the last install. Returns success."""
-    if packages_ok():
+    if paths.FROZEN or packages_ok():  # the installed app has everything built in
         return True
     if visible:
         print("  Installing new parts for Loot Radar (one time, takes a minute)...", flush=True)
@@ -108,6 +114,8 @@ def clear_stuck_starts() -> None:
 
 def apply_pending_start_bat() -> None:
     """An update can't swap START.bat while it runs; do it a few seconds later instead."""
+    if paths.FROZEN:
+        return
     def later():
         time.sleep(8)
         new = ROOT / "START.bat.new"
@@ -151,9 +159,12 @@ def prepare() -> int:
 
 def main() -> int:
     args = sys.argv[1:]
+    if paths.FROZEN and "--run" in args:  # the installed app: this process is Loot Radar itself
+        import lootradar
+        return lootradar.main() or 0
     if "--prepare" in args:
         return prepare()
-    console = "--console" in args
+    console = "--console" in args and not paths.FROZEN  # the installed app has no console window
     LOG.parent.mkdir(parents=True, exist_ok=True)
     logf = None
     if not console:  # pythonw: no console, so everything goes to the log file
@@ -161,20 +172,24 @@ def main() -> int:
         sys.stdout = sys.stderr = logf
     if not ensure_packages(visible=console):
         message_box("Loot Radar couldn't install the parts it needs.\n\n" + last_log_lines()
-                    + "\n\nCheck your internet connection and run START.bat again.")
+                    + f"\n\nCheck your internet connection and {AGAIN}.")
         return 1
     apply_pending_start_bat()
+    run_cmd = [sys.executable, "--run"] if paths.FROZEN else [sys.executable, str(HERE / "lootradar.py")]
     while True:
         started = time.time()
         code = subprocess.call(
-            [sys.executable, str(HERE / "lootradar.py"), *args], cwd=str(HERE),
+            [*run_cmd, *args], cwd=str(paths.CODE_DIR),
             stdin=subprocess.DEVNULL, stdout=logf, stderr=logf,  # crashes land in the log too
             creationflags=0 if console else NO_WINDOW,
         )
         if code == RESTART_CODE:
             print("Loot Radar is restarting (update or restart from the tray).", flush=True)
             ensure_packages(visible=console)
-            args = [a for a in args if a != "--no-browser"] + ["--no-browser"]  # the tab is already open
+            if paths.FROZEN:  # its own window closed with it: show it again (unless it started hidden)
+                args = [a for a in args if a != "--restarted"] + ["--restarted"]
+            else:
+                args = [a for a in args if a != "--no-browser"] + ["--no-browser"]  # the tab is already open
             continue
         if code != 0 and time.time() - started < 60:
             message_box("Loot Radar couldn't start.\n\n" + (last_log_lines() or f"Exit code {code}.")

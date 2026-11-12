@@ -1,9 +1,14 @@
 """Update checks for Loot Radar itself and for the built-in drop miner.
 
-Loot Radar: compares the VERSION file here with the VERSION file on GitHub (UPDATE_REPO,
-main branch). "Update Loot Radar" downloads that branch, copies it over this folder (your
-settings in app/data, the Python packages in app/.venv and the miner are left alone) and
-restarts. To publish an update: change the code, bump VERSION, push to GitHub.
+Loot Radar, two kinds of copy (see paths.py):
+* Installed app: compares its version with the newest GitHub Release that has LootRadarSetup.exe
+  attached. "Update Loot Radar" downloads that setup file, runs it silently and quits; the setup
+  replaces the program and starts the new version. Your data is elsewhere and isn't touched.
+* Zip copy: compares the VERSION file here with the VERSION file on GitHub (UPDATE_REPO, main
+  branch). "Update Loot Radar" downloads that branch, copies it over this folder (your settings
+  in app/data, the Python packages in app/.venv and the miner are left alone) and restarts.
+  Once a release has the setup file, zip copies can also "Switch to the installer version":
+  your settings and the miner are copied to the installed app's place, then the setup opens.
 
 Miner: compares the installed version with its newest GitHub release.
 """
@@ -11,8 +16,12 @@ Miner: compares the installed version with its newest GitHub release.
 from __future__ import annotations
 
 import io
+import json
 import os
 import shutil
+import subprocess
+import sys
+import tempfile
 import threading
 import time
 import zipfile
@@ -20,18 +29,22 @@ from pathlib import Path
 
 import requests
 
+import autostart
 import minerctl
 import notify
+import paths
 import store
 
 # The GitHub repo Loot Radar updates itself from ("owner/name").
 UPDATE_REPO = "Winyshadow/loot-radar"
 BRANCH = "main"
 
-ROOT = Path(__file__).resolve().parent.parent
-VERSION_FILE = ROOT / "VERSION"
+ROOT = paths.INSTALL_DIR  # zip copy: the folder with START.bat
+VERSION_FILE = paths.VERSION_FILE
 RAW_URL = os.environ.get("LOOTRADAR_RAW_URL", f"https://raw.githubusercontent.com/{UPDATE_REPO}/{BRANCH}/VERSION")
 ZIP_URL = os.environ.get("LOOTRADAR_ZIP_URL", f"https://codeload.github.com/{UPDATE_REPO}/zip/refs/heads/{BRANCH}")
+RELEASE_API = os.environ.get("LOOTRADAR_RELEASE_API", f"https://api.github.com/repos/{UPDATE_REPO}/releases/latest")
+SETUP_NAME = "LootRadarSetup.exe"
 REPO_PAGE = f"https://github.com/{UPDATE_REPO}"
 
 # Never overwritten by an update: personal data, installed packages, the miner, git metadata.
@@ -82,13 +95,26 @@ def check(force: bool = False) -> dict:
             return info
 
         info["loot_radar"] = {"current": current_version(), "latest": None, "available": False,
-                              "configured": configured(), "page": REPO_PAGE, "error": None}
+                              "configured": configured(), "page": REPO_PAGE, "error": None,
+                              "mode": paths.APP_MODE}
+        info["installer"] = None  # the newest release's setup file, if it has one
         if configured():
             try:
-                r = requests.get(RAW_URL, timeout=15, headers={"Cache-Control": "no-cache"})
-                r.raise_for_status()
-                latest = r.text.strip().splitlines()[0].strip()
-                info["loot_radar"].update(latest=latest, available=minerctl.newer(latest, current_version()))
+                info["installer"] = latest_installer()
+            except Exception as exc:
+                if paths.FROZEN:
+                    info["loot_radar"]["error"] = f"Couldn't check ({exc.__class__.__name__})"
+            try:
+                if paths.FROZEN:  # installed app: updates come as a new setup file in a Release
+                    rel = info["installer"]
+                    if rel:
+                        info["loot_radar"].update(latest=rel["version"], page=rel["page"],
+                                                  available=bool(rel["url"]) and minerctl.newer(rel["version"], current_version()))
+                else:
+                    r = requests.get(RAW_URL, timeout=15, headers={"Cache-Control": "no-cache"})
+                    r.raise_for_status()
+                    latest = r.text.strip().splitlines()[0].strip()
+                    info["loot_radar"].update(latest=latest, available=minerctl.newer(latest, current_version()))
             except Exception as exc:
                 info["loot_radar"]["error"] = f"Couldn't check ({exc.__class__.__name__})"
 
@@ -153,13 +179,147 @@ def forget_miner_notice() -> None:
         store.patch_state(updates=info)
 
 
+def latest_installer() -> dict | None:
+    """The newest GitHub Release: {version, url (of LootRadarSetup.exe, or None), size, page}."""
+    r = requests.get(RELEASE_API, timeout=20, headers={"Accept": "application/vnd.github+json"})
+    if r.status_code == 404:  # no releases at all
+        return None
+    r.raise_for_status()
+    data = r.json()
+    asset = next((a for a in data.get("assets") or [] if a.get("name") == SETUP_NAME), None)
+    return {"version": str(data.get("tag_name", "")).lstrip("vV"),
+            "url": asset.get("browser_download_url") if asset else None,
+            "size": asset.get("size") if asset else None,
+            "page": data.get("html_url") or f"{REPO_PAGE}/releases"}
+
+
 # ------------------------------------------------------------------ self-update
 def update_loot_radar_async(on_done) -> bool:
+    """on_done(exit_code): called when Loot Radar should quit (3 = restart, 0 = the setup takes over)."""
     if job["state"] == "working":
         return False
     job.update(state="working", note="Downloading the new version…")
-    threading.Thread(target=_update, args=(on_done,), daemon=True).start()
+    target = _update_installed if paths.FROZEN else _update
+    threading.Thread(target=target, args=(on_done,), daemon=True).start()
     return True
+
+
+def switch_to_installer_async(on_done) -> bool:
+    """Zip copy only: move your settings and the miner over to the installed app, then open its setup."""
+    if paths.FROZEN or job["state"] == "working":
+        return False
+    job.update(state="working", note="Downloading the installer…")
+    threading.Thread(target=_switch, args=(on_done,), daemon=True).start()
+    return True
+
+
+def _download_setup() -> tuple[Path, str]:
+    """Download the newest LootRadarSetup.exe to a temp folder. Returns (path, version)."""
+    rel = latest_installer()
+    if not rel or not rel.get("url"):
+        raise RuntimeError("The newest release doesn't have the installer yet. Try again in a little while.")
+    dest = Path(tempfile.gettempdir()) / f"LootRadarSetup-{rel['version']}.exe"
+    with requests.get(rel["url"], stream=True, timeout=60) as r:
+        r.raise_for_status()
+        total = int(r.headers.get("content-length") or rel.get("size") or 0)
+        done = 0
+        tmp = dest.with_suffix(".part")
+        with tmp.open("wb") as f:
+            for chunk in r.iter_content(1 << 16):
+                f.write(chunk)
+                done += len(chunk)
+                if total:
+                    job["note"] = f"Downloading Loot Radar {rel['version']}… {done * 100 // total}%"
+    data_ok = tmp.stat().st_size > 1_000_000 and tmp.read_bytes()[:2] == b"MZ"
+    if not data_ok or (rel.get("size") and tmp.stat().st_size != rel["size"]):
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError("The download doesn't look like Loot Radar's installer, so nothing was changed.")
+    os.replace(tmp, dest)
+    return dest, rel["version"]
+
+
+def _launch_detached(args: list[str]) -> None:
+    """Start the setup so it keeps running after Loot Radar quits."""
+    flags = 0
+    if os.name == "nt":
+        flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        try:
+            subprocess.Popen(args, creationflags=flags | 0x01000000, close_fds=True)  # + CREATE_BREAKAWAY_FROM_JOB
+            return
+        except OSError:
+            pass
+    subprocess.Popen(args, creationflags=flags, close_fds=True)
+
+
+def _update_installed(on_done) -> None:
+    """Installed app: run the new setup silently; it closes this copy and starts the new one."""
+    try:
+        setup, version = _download_setup()
+        job.update(note=f"Installing Loot Radar {version}. It starts again by itself in a moment…")
+        store.log(f"Installing Loot Radar {version} (the setup restarts it).")
+        _launch_detached([str(setup), "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/LAUNCH=1"])
+        job.update(state="done")
+        on_done(0)
+    except Exception as exc:
+        msg = (str(exc).splitlines() or [exc.__class__.__name__])[0][:240]
+        job.update(state="error", note=f"Update failed: {msg}")
+        store.log(f"Loot Radar update failed: {msg}", "error")
+
+
+CACHE_DIRS = ("Cache", "Code Cache", "GPUCache", "DawnCache", "DawnGraphiteCache", "DawnWebGPUCache",
+              "GrShaderCache", "GraphiteDawnCache", "ShaderCache", "Service Worker", "*.tmp", "*.part")
+
+
+def _copy_tree(src: Path, dst: Path) -> int:
+    """Copy a folder, skipping browser caches and files Windows won't let go of. Returns problems."""
+    try:
+        shutil.copytree(src, dst, dirs_exist_ok=True, ignore=shutil.ignore_patterns(*CACHE_DIRS))
+        return 0
+    except shutil.Error as exc:  # copies everything it can, then lists what it couldn't
+        return len(exc.args[0]) if exc.args and isinstance(exc.args[0], list) else 1
+
+
+def move_to_installed_home(src_data: Path, src_miner: Path, home: Path) -> str:
+    """Copy a zip copy's settings and miner to where the installed app keeps them.
+    Never overwrites an installed app that already has settings. Returns a short note."""
+    dst_data, dst_miner = home / "data", home / "miner"
+    if (dst_data / "config.json").exists():
+        return "The installed app already has settings, so they were kept as they are."
+    problems = _copy_tree(src_data, dst_data) if src_data.exists() else 0
+    if src_miner.exists() and not (dst_miner / "TwitchDropsMiner").exists():
+        problems += _copy_tree(src_miner, dst_miner)
+        shutil.rmtree(dst_miner / "_download", ignore_errors=True)
+    cfg_path = dst_data / "config.json"
+    if cfg_path.exists():  # remember where it came from, so the new app can say the old folder may go
+        cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+        cfg["migrated_from"] = str(src_data.parent.parent)
+        cfg.pop("miner_exe", None)  # points into the old folder; the new app finds its own
+        cfg_path.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+    return f"Copied your settings and the miner ({problems} file(s) skipped)." if problems else "Copied your settings and the miner."
+
+
+def _switch(on_done) -> None:
+    try:
+        setup, version = _download_setup()
+        job.update(note="Stopping the miner…")
+        minerctl.stop()
+        job.update(note="Copying your settings and the miner…")
+        note = move_to_installed_home(paths.DATA_DIR, paths.MINER_DIR, paths.INSTALLED_HOME)
+        store.log(f"Switching to the installed Loot Radar {version}. {note}")
+        args = [str(setup)]
+        if not autostart.enabled():
+            args.append("/MERGETASKS=!startup")  # keep "start with Windows" the way you had it
+        job.update(state="done", note="The installer is open. Follow its steps; this copy closes now.")
+        _launch_detached(args)
+        on_done(0)
+    except Exception as exc:
+        msg = (str(exc).splitlines() or [exc.__class__.__name__])[0][:240]
+        job.update(state="error", note=f"Switching failed: {msg}")
+        store.log(f"Switching to the installer failed: {msg}", "error")
+        try:
+            minerctl.autostart()
+        except Exception:
+            pass
 
 
 def _keep(rel: str) -> bool:
@@ -206,7 +366,7 @@ def _update(on_done) -> None:
         if info.get("loot_radar"):
             info["loot_radar"].update(current=new_version, available=False)
             store.patch_state(updates=info)
-        on_done()
+        on_done(RESTART_CODE)
     except Exception as exc:
         msg = (str(exc).splitlines() or [exc.__class__.__name__])[0][:240]
         job.update(state="error", note=f"Update failed: {msg}")

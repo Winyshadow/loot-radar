@@ -25,12 +25,23 @@ Loot Radar reads your Steam library and the games installed from your other laun
 | Updates | Checks GitHub every 6 hours for new versions of Loot Radar and the miner; one click to update |
 | Memory guard | Restarts the miner if it ever uses too much memory |
 
-## Install (Windows)
+## Install (Windows 10 or 11)
+
+1. Download **LootRadarSetup.exe** from the [latest release](https://github.com/Winyshadow/loot-radar/releases/latest).
+2. Open it. Windows may say *"Windows protected your PC"* because the installer isn't code-signed: click **More info → Run anyway**.
+3. Click through the installer (no admin rights needed). Loot Radar opens in its own window, and the setup guide walks you through the rest.
+
+Loot Radar then lives in the Start menu and in the system tray (the ^ icons next to the clock). Closing its window keeps it running in the tray; double-click the tray icon to open it again. Uninstall it like any app (Settings → Apps); it asks whether to keep your settings.
+
+<details><summary>Other way: the zip with START.bat (needs no installer)</summary>
 
 1. Click the green **Code** button on this page and choose **Download ZIP**.
 2. Right-click the zip → **Extract All**, and put the folder somewhere permanent (e.g. `Documents\Loot Radar`).
-3. Double-click **START.bat**. The first start installs everything it needs (including Python, if you don't have it) and opens the dashboard at <http://127.0.0.1:5577>. After that Loot Radar lives in the system tray (the ^ icons next to the clock); double-click its icon, or START.bat again, to reopen the dashboard.
+3. Double-click **START.bat**. The first start installs everything it needs (including Python, if you don't have it) and opens the dashboard in your browser at <http://127.0.0.1:5577>. Double-click the tray icon, or START.bat again, to reopen it.
 4. Optional: double-click **Create Desktop Shortcut.bat** for a desktop icon.
+
+Already using the zip? **Settings → Updates → Switch to the installer version** moves you over, with your settings and the miner.
+</details>
 
 ## Set up (about 10 minutes, once)
 
@@ -52,8 +63,9 @@ Loot Radar tells you (on the dashboard and in Discord) when there's a new versio
 ## Good to know
 
 - Right-click the tray icon → **Quit Loot Radar** to stop it (or **Quit Loot Radar and the miner**). **Show log** opens its log file.
-- Something wrong? Run `START.bat console` from a command prompt to start it with the log visible.
-- Everything personal (Steam key, Discord webhook, Twitch sign-in) stays on your PC in `app\data` and `%APPDATA%\TwitchDropsMiner`. It's never uploaded.
+- Something wrong? Tray icon → **Show log**. (Zip copy: run `START.bat console` from a command prompt to see the log live.)
+- Prefer your browser over Loot Radar's own window? Settings → Preferences → **Open the dashboard in my browser instead**.
+- Everything personal (Steam key, Discord webhook, Twitch sign-in) stays on your PC: in `%LOCALAPPDATA%\Loot Radar` (zip copy: `app\data`) and `%APPDATA%\TwitchDropsMiner`. It's never uploaded.
 - Auto-mine uses [Twitch Drops Miner](https://github.com/SimpliAj/twitchdropsminer), which earns watch time without playing the video. That goes against Twitch's rules on cheating rewards, so there's some risk to the Twitch account you use with it. Muted mode really watches the stream.
 
 ## Credits
@@ -69,6 +81,6 @@ Loot Radar © 2026 solitary_samurai. All rights reserved. It's free to download 
 1. Make your changes.
 2. Raise the number in `VERSION`: fixes and small tweaks `1.0.0` → `1.0.1`, a new feature → `1.1.0`, a big overhaul → `2.0.0`.
 3. Add what changed to the top of `CHANGELOG.md`.
-4. Commit and push to `main`, then publish a GitHub Release tagged `1.0.1`. Everyone's Loot Radar sees it within 6 hours.
+4. Commit and push to `main`, then publish a GitHub Release tagged `1.0.1`. Publishing it starts the **Build installer** workflow (`.github/workflows/release.yml`), which builds `LootRadarSetup.exe` and attaches it to the release a few minutes later.
 
-The update source is set by `UPDATE_REPO` at the top of `app/updates.py`. See [CHANGELOG.md](CHANGELOG.md) for the version history.
+Installed copies update once the release has its setup file; zip copies update from `main`. Everyone's Loot Radar checks every 6 hours. To build the installer on your own PC: `build\build.ps1` (see the top of that file). The update source is set by `UPDATE_REPO` at the top of `app/updates.py`. See [CHANGELOG.md](CHANGELOG.md) for the version history.

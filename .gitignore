@@ -7,6 +7,12 @@ miner/
 __pycache__/
 *.pyc
 
+# Building the installer (build/build.ps1)
+build/.venv/
+build/work/
+dist/
+
 # Leftovers from self-updates
 START.bat.new
 *.tmp
+build/*.log

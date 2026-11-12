@@ -9,9 +9,9 @@ read back here, so the tick box always shows what Windows will really do.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+import paths
+
 NAME = "Loot Radar"
 RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 APPROVED_KEY = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
@@ -22,8 +22,10 @@ def supported() -> bool:
 
 
 def command() -> str:
-    pythonw = HERE / ".venv" / "Scripts" / "pythonw.exe"
-    return f'"{pythonw}" "{HERE / "launcher.py"}" --no-browser'
+    if paths.FROZEN:  # the installed app: LootRadar.exe itself
+        return f'"{sys.executable}" --no-browser'
+    pythonw = paths.CODE_DIR / ".venv" / "Scripts" / "pythonw.exe"
+    return f'"{pythonw}" "{paths.CODE_DIR / "launcher.py"}" --no-browser'
 
 
 def _read(key_path: str):

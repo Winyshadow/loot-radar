@@ -6,6 +6,14 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 2.0.0 (2026-11-12)
+
+- **Loot Radar is now a normal Windows app.** Download **LootRadarSetup.exe** from the release, click through the installer (no admin rights needed) and that's it: no Python, no START.bat. It goes in the Start menu and the Windows apps list, can put a shortcut on your desktop and start with Windows, and uninstalls like any program (it asks whether to keep your settings).
+- **Its own window.** The dashboard opens in a Loot Radar window instead of a browser tab. Closing it keeps Loot Radar collecting drops in the tray; double-click the tray icon, or start it again, to bring the window back. Prefer the browser? Settings → Preferences → "Open the dashboard in my browser instead".
+- **Updates install themselves.** "Update Loot Radar" downloads the new setup, installs it quietly and opens the new version. Your settings live in their own folder (`%LOCALAPPDATA%\Loot Radar`), so updates and reinstalls never touch them.
+- **Using the zip with START.bat?** It keeps working and updating as before. When you're ready: **Settings → Updates → Switch to the installer version**. It copies your settings, games and the drop miner over, opens the installer, and tells you afterwards that the old folder can go.
+- The phone-access firewall tips now name the right program (Loot Radar or Python).
+
 ## 1.8.0 (2026-11-12)
 
 - New **setup guide**: the first time Loot Radar starts, a step-by-step window walks you through everything, one step at a time: welcome, drop miner (install and Twitch login, with live progress), Steam, Discord, linking your game accounts, extras (start with Windows, game deals, phone access) and picking your games. Optional steps have a **Skip** button, **Back** goes back, and **Finish later** closes it. If you close the page halfway, it carries on where you left off.
