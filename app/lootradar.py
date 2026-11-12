@@ -355,7 +355,7 @@ def api_settings():
             except (TypeError, ValueError):
                 pass
     for key in ("auto_start_miner", "auto_update_miner", "alert_library_drops", "priority_auto_sort",
-                "steam_skipped", "discord_skipped"):
+                "steam_skipped", "discord_skipped", "setup_done"):
         if key in data:
             cfg[key] = bool(data[key])
     if "sync_miner_webhook" in data:

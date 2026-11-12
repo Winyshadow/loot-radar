@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 1.8.0 (2026-11-12)
+
+- New **setup guide**: the first time Loot Radar starts, a step-by-step window walks you through everything, one step at a time: welcome, drop miner (install and Twitch login, with live progress), Steam, Discord, linking your game accounts, extras (start with Windows, game deals, phone access) and picking your games. Optional steps have a **Skip** button, **Back** goes back, and **Finish later** closes it. If you close the page halfway, it carries on where you left off.
+- Already set up? You won't see it. You can open it any time from **Settings → Setup → Run the setup guide again**.
+
 ## 1.7.3 (2026-11-12)
 
 - Safer: other websites open in your browser can no longer talk to Loot Radar. Before, a malicious page could in theory have sent it commands (like changing your Discord link). Now only Loot Radar's own dashboard, and your phone with its PIN, are accepted. Nothing changes in how you use it.

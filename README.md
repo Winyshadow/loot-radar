@@ -34,7 +34,7 @@ Loot Radar reads your Steam library and the games installed from your other laun
 
 ## Set up (about 10 minutes, once)
 
-Open **Settings** on the dashboard:
+The first time Loot Radar starts, a **setup guide** walks you through these steps one at a time (skip the optional ones). You can run it again from **Settings → Setup**, or do it all yourself in **Settings**:
 
 | Step | What to do |
 |---|---|

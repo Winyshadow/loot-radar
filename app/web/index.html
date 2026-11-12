@@ -309,6 +309,38 @@
            background: rgba(10, 36, 50, .95); border: 1px solid var(--line2); box-shadow: 0 12px 40px rgba(0, 0, 0, .5); backdrop-filter: blur(10px); }
   .toast.ok { border-color: rgba(182, 240, 60, .6); } .toast.bad { border-color: var(--red); }
 
+  /* ---------- first-start setup guide */
+  .wiz { position: fixed; inset: 0; z-index: 45; display: none; place-items: center; padding: 16px; background: rgba(3, 14, 21, .72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  .wiz.on { display: grid; }
+  .wbox { width: 100%; max-width: 580px; max-height: calc(100vh - 32px); overflow: auto; border-radius: var(--r-xl); padding: 22px 26px 18px; display: grid; gap: 14px;
+          background: linear-gradient(180deg, rgba(20, 62, 82, .97), rgba(9, 32, 45, .98)); border: 1px solid var(--line2); box-shadow: 0 30px 80px rgba(0, 0, 0, .55); }
+  .whead { display: flex; align-items: center; gap: 10px; }
+  .wstep { font-size: 11px; color: var(--faint); font-weight: 700; letter-spacing: .6px; text-transform: uppercase; }
+  .whead button { margin-left: auto; }
+  .wbox h2 { margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .wbox h2 .tag { font-size: 11px; }
+  .wbox p { margin: 0; color: var(--dim); }
+  .wbox ul, .wbox ol { margin: 0; padding-left: 20px; color: var(--dim); display: grid; gap: 4px; }
+  .wbox li b { color: var(--text); }
+  .wbox details summary { margin-bottom: 6px; }
+  .wstat { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-radius: var(--r-md); background: rgba(4, 20, 30, .45); border: 1px solid var(--line); }
+  .wstat > b:first-child { min-width: 70px; }
+  .wwarn { padding: 10px 14px; border-radius: var(--r-md); font-size: 13px; color: var(--dim); background: rgba(244, 194, 90, .1); border: 1px solid rgba(244, 194, 90, .35); }
+  .wpick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .wpick button { border-radius: var(--r-md); padding: 14px; text-align: left; display: grid; gap: 2px; }
+  .wpick button span { color: var(--dim); font-weight: 400; font-size: 12px; }
+  .wx { display: grid; gap: 12px; }
+  .wx .check-line { align-items: flex-start; } .wx .check-line input { margin-top: 4px; }
+  .wx .check-line span { display: grid; } .wx .check-line b { color: var(--text); font-weight: 600; }
+  .wmsg { color: var(--red); font-size: 13px; }
+  .wmsg:empty { display: none; }
+  .wfoot { display: flex; align-items: center; gap: 8px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .wdots { display: flex; gap: 6px; margin-right: auto; }
+  .wdots i { width: 8px; height: 8px; border-radius: 99px; background: var(--glass3); border: 1px solid var(--line2); transition: width .2s; }
+  .wdots i.past { background: rgba(182, 240, 60, .45); border-color: transparent; }
+  .wdots i.on { width: 22px; background: var(--lime); border-color: var(--lime); }
+  @media (max-width: 760px) { .wbox { padding: 18px 16px 14px; } .wbox h2 { font-size: 19px; } .wpick { grid-template-columns: 1fr; } }
+
   /* ---------- bottom dock: appears once the top menu has scrolled away (always on phones) */
   body { padding-bottom: 84px; }
   .dock { position: fixed; left: 50%; bottom: 16px; z-index: 40; display: flex; gap: 4px; align-items: center; padding: 5px;
@@ -756,6 +788,7 @@
         <label class="check-line skip"><input type="checkbox" id="s-skip-discord"> Skip Discord for now (no reminders; untick any time)</label>
       </div>
     </div>
+    <div class="row pc-only" style="margin-top:12px"><button class="sm" data-wiz="open">Run the setup guide again</button><span class="faint">A step-by-step walk through all of this.</span></div>
       </div>
     </details>
 
@@ -832,6 +865,7 @@
   </section>
 </div>
 
+<div class="wiz" id="wiz" role="dialog" aria-modal="true" aria-labelledby="wiz-title"><div class="wbox" id="wiz-box"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -1171,6 +1205,7 @@ function render() {
 
   fillForms();
   renderStats(); renderRunning(); renderSubs(); renderCompleted(); renderMuted(); renderGames(); renderLog();
+  if (WIZ !== null) wizLive();
 }
 
 // Sub drops need a paid subscription, so watching never earns them: they live in their own panel
@@ -1700,9 +1735,173 @@ function waitForRestart() {
 }
 
 async function refresh() {
-  try { S = await api("/api/state"); S._at = Date.now(); render(); }
+  try { S = await api("/api/state"); S._at = Date.now(); render(); wizCheck(); }
   catch (e) { dot("#c-steam", "bad", "Loot Radar not running"); }
 }
+
+/* ---------------- first-start setup guide */
+// Opens by itself the first time (brand-new install only), one step at a time, and remembers the
+// step in this browser so it carries on after a reload. Closing it ("Finish later" or Finish) marks
+// setup as done; Settings → Setup has "Run the setup guide again".
+const WIZ_STEPS = ["welcome", "miner", "steam", "discord", "link", "extras", "games"];
+let WIZ = null, wizSig = "";
+
+function wizCheck() {
+  if (WIZ !== null || !S || S.remote || S.settings.setup_done) return;
+  const saved = store("lr-wiz-step");
+  if (Number.isInteger(saved)) return openWiz(saved);
+  const st = S.settings;
+  const used = S.miner_builtin || S.miner_status === "ok" || st.steam_api_key || st.discord_webhook
+    || (S.games || []).length || st.steam_skipped || st.discord_skipped;
+  if (used) { st.setup_done = true; api("/api/settings", { setup_done: true }).catch(() => {}); return; }  // set up before the guide existed
+  openWiz(0);
+}
+function openWiz(i) { $("#wiz").classList.add("on"); document.body.style.overflow = "hidden"; wizGo(i); }
+function wizGo(i) {
+  WIZ = Math.max(0, Math.min(WIZ_STEPS.length - 1, i | 0)); store("lr-wiz-step", WIZ);
+  wizSig = ""; renderWiz(); $("#wiz-box").scrollTop = 0;
+}
+async function closeWiz() {
+  WIZ = null; store("lr-wiz-step", null);
+  $("#wiz").classList.remove("on"); document.body.style.overflow = "";
+  if (S) S.settings.setup_done = true;
+  await api("/api/settings", { setup_done: true }).catch(() => {});
+}
+function wizState() {
+  const st = S.settings, job = S.miner_job || {}, acc = S.miner_account || {};
+  return { mOk: S.miner_status === "ok", bi: S.miner_builtin, job, busy: ["downloading", "installing"].includes(job.state),
+           acc, signed: acc.state === "in", steamOk: !!(st.steam_api_key && st.steam_id), hookOk: !!st.discord_webhook };
+}
+function wizSkippable(step, w) {
+  return step === "miner" ? !(w.mOk && w.signed) : step === "steam" ? !w.steamOk : step === "discord" ? !w.hookOk : false;
+}
+function wizLiveHtml(step, w) {
+  if (step === "miner") {
+    const inst = w.busy ? `<div style="flex:1;min-width:180px"><div class="bar" style="margin-bottom:6px"><b style="width:${w.job.pct || 3}%"></b></div><span class="faint">${esc(w.job.note)}</span></div>`
+      : w.bi ? (w.mOk ? `<span class="tag live">Installed</span><span class="faint">Running · v${esc(w.bi.version || "?")}</span>`
+                      : `<span class="tag soon">Installed</span><span class="faint">${S.miner_running ? "Starting…" : "Not running"}</span>${S.miner_running ? "" : '<button class="sm" data-act="miner-start">Start</button>'}`)
+      : w.mOk ? `<span class="tag live">Found</span><span class="faint">Your own copy of the miner is running.</span>`
+      : `<span class="tag warn">Not installed</span><button class="lime sm" data-act="miner-install">Install miner</button>`;
+    const ml = S.miner_login || {};
+    const login = w.signed ? `<span class="tag live">Signed in</span><span class="faint">as</span> <b>${esc(w.acc.user)}</b>`
+      : ["waiting", "working"].includes(ml.state) ? `<span class="tag soon">Signing in</span><span class="faint">${ml.state === "waiting" ? "Sign in to Twitch in the window that opened." : "Passing the login to the miner…"}</span>`
+      : `<span class="tag warn">Not signed in</span>${w.mOk ? '<button class="lime sm" data-wiz="login">Log in to Twitch</button>' : '<span class="faint">Install the miner first.</span>'}`
+        + (ml.state === "error" ? `<span class="faint">⚠️ ${esc(ml.note)}</span>` : "");
+    return `<div class="wstat"><b>Install</b>${inst}</div><div class="wstat"><b>Twitch</b>${login}</div>`;
+  }
+  if (step === "steam" && w.steamOk) return `<div class="wstat"><span class="tag live">Connected</span><span class="faint">${(S.games || []).length} games in your Library.</span></div>`;
+  if (step === "discord" && w.hookOk) return `<div class="wstat"><span class="tag live">Connected</span><span class="faint">Alerts go to your Discord channel.</span></div>`;
+  return "";
+}
+function wizLive() {
+  if (WIZ === null || !S) return;
+  const step = WIZ_STEPS[WIZ], w = wizState(), html = wizLiveHtml(step, w), live = $("#wiz-live");
+  if (live && html !== wizSig) { live.innerHTML = html; wizSig = html; }
+  const next = $("#wiz-next"); if (!next) return;
+  const skip = wizSkippable(step, w), last = WIZ === WIZ_STEPS.length - 1;
+  next.textContent = last ? "Finish" : skip ? "Skip" : WIZ === 0 ? "Let's go" : "Next";
+  next.className = skip ? "" : "lime"; next.dataset.wiz = skip ? "skip" : "next";
+}
+function renderWiz() {
+  const st = S.settings, step = WIZ_STEPS[WIZ], LIVE = '<div id="wiz-live" style="display:grid;gap:8px"></div>', MSG = '<div class="wmsg" id="wiz-msg"></div>';
+  const body = {
+    welcome: `<h2 id="wiz-title">👋 Welcome to Loot Radar</h2>
+      <p>A few quick steps and Loot Radar collects Twitch drops for your games by itself. Optional steps have a <b>Skip</b> button, and you can change everything later in Settings.</p>
+      <ul><li><b>Finds drop campaigns</b> for the games you play: Steam, Epic, EA, Battle.net and more</li>
+        <li><b>Collects drops</b> in the background with the built-in drop miner</li>
+        <li><b>Pings your Discord</b> about new drops, Steam news and game deals</li></ul>
+      <div class="wwarn"><b>Good to know:</b> auto-mine earns watch time without playing the video. That goes against Twitch's rules, so there's some risk to the Twitch account you use with it. Muted mode really watches the stream.</div>`,
+    miner: `<h2 id="wiz-title">⛏️ Drop miner <span class="tag req">Needed for auto-mine</span></h2>
+      <p>The miner does the watching for you. Loot Radar downloads it from its official GitHub (<a href="https://github.com/SimpliAj/twitchdropsminer" target="_blank" rel="noopener">Twitch Drops Miner</a> by SimpliAj), then you sign it in to Twitch once.</p>
+      ${LIVE}${MSG}
+      <p class="faint">Only want alerts, or muted mode? You can skip this and install it later in Settings.</p>`,
+    steam: `<h2 id="wiz-title">🎮 Steam <span class="tag opt">Optional</span></h2>
+      <p>Loads your Steam games and hours played, so Loot Radar can spot drops for games you own. Games from other launchers are found without any login.</p>
+      <details${st.steam_api_key ? "" : " open"}><summary>How to get these</summary><ol>
+        <li>Open <a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener">steamcommunity.com/dev/apikey</a> and sign in.</li>
+        <li>Domain name: type <b>localhost</b>, tick the box, click <b>Register</b> once.</li>
+        <li><b>📱 Approve it in the Steam app on your phone</b> (🔔 notifications). Steam only makes the key after that.</li>
+        <li>Copy the key below, with your profile link. Your profile's <b>Game details</b> must be <b>Public</b>.</li></ol></details>
+      <div class="field"><label>Steam API key</label><input id="w-key" placeholder="32-character key" autocomplete="off" value="${esc(st.steam_api_key || "")}"></div>
+      <div class="field"><label>Your Steam profile link</label><input id="w-profile" placeholder="https://steamcommunity.com/id/yourname" value="${esc(st.steam_profile_input || "")}"></div>
+      <div class="row"><button class="lime" data-wiz="steam">Connect &amp; load games</button></div>${LIVE}${MSG}`,
+    discord: `<h2 id="wiz-title">💬 Discord alerts <span class="tag opt">Optional</span></h2>
+      <p>Get a message in a Discord channel about new drops, Steam news and claimed rewards.</p>
+      <details${st.discord_webhook ? "" : " open"}><summary>How to get the link</summary><ol>
+        <li>Hover the channel you want alerts in and click ⚙️ (Edit Channel).</li>
+        <li><b>Integrations → Webhooks → New Webhook</b>.</li>
+        <li>Name it "Loot Radar", then <b>Copy Webhook URL</b>.</li></ol></details>
+      <div class="field"><label>Discord webhook link</label><input id="w-hook" placeholder="https://discord.com/api/webhooks/…" autocomplete="off" value="${esc(st.discord_webhook || "")}"></div>
+      <label class="check-line"><input type="checkbox" id="w-sync"${st.sync_miner_webhook ? " checked" : ""}> Let the miner post "drop claimed" messages here too</label>
+      <div class="row"><button class="lime" data-wiz="discord">Save &amp; send a test</button></div>${LIVE}${MSG}`,
+    link: `<h2 id="wiz-title">🔗 Link your game accounts</h2>
+      <p>Twitch only hands out drops for games whose account is linked to your Twitch account. You do this once per game, on Twitch's site.</p>
+      <ol><li>Open the drops page below (signed in with the same Twitch account as the miner).</li>
+        <li>Open a game's campaign and press <b>Connect</b> next to it.</li>
+        <li>Loot Radar warns you on the Overview when a running drop's game isn't linked yet.</li></ol>
+      <div class="row"><a href="https://www.twitch.tv/drops/campaigns" target="_blank" rel="noopener"><button class="lime">Open twitch.tv/drops/campaigns ↗</button></a></div>`,
+    extras: `<h2 id="wiz-title">✨ Extras <span class="tag opt">Optional</span></h2>
+      <p>Tick what you'd like. Each one has more options in Settings.</p>
+      <div class="wx">
+        <label class="check-line"><input type="checkbox" id="w-x-win"${st.start_with_windows || !st.setup_done ? " checked" : ""}><span><b>Start with Windows</b><span class="faint">Loot Radar starts quietly in the tray when you sign in, so no drop is missed.</span></span></label>
+        <label class="check-line"><input type="checkbox" id="w-x-deals"${st.deals_enabled ? " checked" : ""}><span><b>Game deals</b><span class="faint">Watches your Steam wishlist and pings Discord on big sales. Needs Steam; add a free GG.deals key later for key-shop prices.</span></span></label>
+        <label class="check-line"><input type="checkbox" id="w-x-phone"${st.phone_access ? " checked" : ""}><span><b>Phone access</b><span class="faint">Check your drops from your phone (PIN-protected). Scan the QR code in Settings → Phone access. Windows may ask to allow Loot Radar on your network.</span></span></label>
+      </div>${MSG}`,
+    games: `<h2 id="wiz-title">🎯 Last step: pick your games</h2>
+      <p>Tell Loot Radar which games to watch. For each game pick <b>Off</b>, <b>Alerts</b>, <b>Auto-mine</b> or <b>Muted</b>.</p>
+      <div class="wpick">
+        <button data-wiz="goto" data-to="#/library"><b>📚 Library</b><span>Your Steam games and the ones installed from other launchers</span></button>
+        <button data-wiz="goto" data-to="#/browse"><b>🔎 Browse drops</b><span>Every drop campaign on Twitch right now, Steam or not</span></button>
+      </div>
+      <p class="faint">Until you pick games, the miner mines any drop your linked accounts can get.</p>`,
+  }[step];
+  const dots = WIZ_STEPS.map((_, i) => `<i class="${i === WIZ ? "on" : i < WIZ ? "past" : ""}"></i>`).join("");
+  $("#wiz-box").innerHTML = `<div class="whead"><span class="wstep">Setup · step ${WIZ + 1} of ${WIZ_STEPS.length}</span><button class="sm ghost" data-wiz="later">${WIZ === WIZ_STEPS.length - 1 ? "Close" : "Finish later"}</button></div>
+    ${body}
+    <div class="wfoot"><div class="wdots" aria-hidden="true">${dots}</div>${WIZ ? '<button data-wiz="back">Back</button>' : ""}<button id="wiz-next"></button></div>`;
+  wizLive();
+}
+async function wizExtras() {
+  const st = S.settings, win = $("#w-x-win").checked, deals = $("#w-x-deals").checked, ph = $("#w-x-phone").checked;
+  if (win !== !!st.start_with_windows) await api("/api/settings", { start_with_windows: win });
+  if (deals !== !!st.deals_enabled) { await api("/api/settings", { deals_enabled: deals }); if (deals) api("/api/deals/check", {}).catch(() => {}); }
+  if (ph !== !!st.phone_access) PHONE = await api("/api/phone/config", { enabled: ph });
+  formsFilled = false;
+}
+document.addEventListener("click", async e => {
+  const b = e.target.closest("[data-wiz]"); if (!b) return;
+  const a = b.dataset.wiz, msg = () => $("#wiz-msg");
+  if (msg()) msg().textContent = "";
+  try {
+    if (a === "open") return openWiz(0);
+    if (a === "later") return closeWiz();
+    if (a === "back") return wizGo(WIZ - 1);
+    if (a === "goto") { await closeWiz(); location.hash = b.dataset.to; return; }
+    if (a === "login") { await api("/api/miner/login", {}); toast("A Twitch sign-in window is opening. Sign in there.", "ok"); refresh(); return; }
+    if (a === "steam") {
+      b.disabled = true; b.textContent = "Loading your games…";
+      try { await api("/api/settings", { steam_api_key: $("#w-key").value, steam_profile_input: $("#w-profile").value, steam_skipped: false });
+            const r = await api("/api/library/refresh", {}); toast(`Steam connected: ${r.count} games loaded.`, "ok"); gamesSig = ""; formsFilled = false; }
+      finally { b.disabled = false; b.textContent = "Connect & load games"; }
+      return refresh();
+    }
+    if (a === "discord") {
+      await api("/api/settings", { discord_webhook: $("#w-hook").value, sync_miner_webhook: $("#w-sync").checked, discord_skipped: false });
+      formsFilled = false; await api("/api/test-discord", { webhook: $("#w-hook").value });
+      toast("Saved, and a test message was sent. Check your Discord channel.", "ok"); return refresh();
+    }
+    if (a === "skip" || a === "next") {
+      const step = WIZ_STEPS[WIZ];
+      if (a === "skip" && step === "steam") await api("/api/settings", { steam_skipped: true });
+      if (a === "skip" && step === "discord") await api("/api/settings", { discord_skipped: true });
+      if (step === "extras") await wizExtras();
+      if (WIZ === WIZ_STEPS.length - 1) return closeWiz();
+      wizGo(WIZ + 1); refresh();
+    }
+  } catch (err) { toast(err.message, "bad"); if (msg()) msg().textContent = "⚠️ " + err.message; }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && WIZ !== null) closeWiz(); });
+setInterval(() => { if (WIZ === 1) refresh(); }, 3000);  // miner step: follow the install and Twitch sign-in closely
 
 /* ---------------- events */
 document.addEventListener("click", async e => {
