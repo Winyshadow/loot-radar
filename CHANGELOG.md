@@ -6,6 +6,10 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 2.0.2 (2026-11-12)
+
+- **Uses your whole screen.** The lists on Browse drops and Library, and the Activity log, now reach down to the bottom of the window instead of stopping at a fixed height, so a big monitor shows many more rows at once (and resizing the window resizes them). On wide screens the pages also get wider, up to 1600 pixels of content. Small windows and phones work as before.
+
 ## 2.0.1 (2026-11-12)
 
 - **The Loot Radar window now feels like one app.** The title bar has the same colour as the menu bar, so they read as one band. The page fills the window edge to edge (no more rounded card with a gap around it), the menu stays put at the top while only the page below it scrolls, and the scrollbar is slim and in Loot Radar's colours. (Windows 11 colours the title bar; Windows 10 keeps its dark one.) In the browser, the dashboard looks the same as before.

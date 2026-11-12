@@ -23,6 +23,7 @@
     --lime: #b6f03c; --lime2: #7fd924; --limeglow: rgba(182, 240, 60, .35);
     --amber: #f4c25a; --red: #ff6b7a; --violet: #a989ff; --sky: #5cc8ff;
     --r-xl: 28px; --r-lg: 20px; --r-md: 14px;
+    --page-w: 1600px;  /* widest the content gets; wider screens get even margins */
   }
   * { box-sizing: border-box; }
   html { background: var(--bg0); }
@@ -42,7 +43,7 @@
 
   /* ---------- shell */
   .shell {
-    max-width: 1320px; margin: 22px auto; padding: 0 22px 26px;
+    max-width: calc(var(--page-w) + 44px); margin: 22px auto; padding: 0 22px 26px;
     background: var(--glass); border: 1px solid var(--line); border-radius: var(--r-xl);
     backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
     box-shadow: 0 30px 80px rgba(0, 10, 20, .45), inset 0 1px 0 rgba(255, 255, 255, .05);
@@ -145,7 +146,7 @@
   tbody tr { border-bottom: 1px solid var(--line); transition: background .15s; }
   tbody tr:last-child { border-bottom: 0; }
   tbody tr:hover { background: rgba(160, 220, 245, .035); }
-  .scroll { max-height: 640px; overflow: auto; }
+  .scroll { max-height: 640px; overflow: auto; }  /* fitLists() stretches these (and .log) to the window's height */
   .xscroll { overflow-x: auto; }
   .empty { padding: 34px 18px; text-align: center; color: var(--faint); }
   .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -442,10 +443,10 @@
   :root { --chrome: #0b2636; }
   html.in-app, html.in-app body { height: 100%; overflow: hidden; }
   html.in-app body { display: flex; flex-direction: column; padding-bottom: 0; }
-  html.in-app nav.top { flex: none; position: relative; z-index: 30; margin: 0; padding: 6px max(28px, calc((100% - 1276px) / 2)) 12px;
+  html.in-app nav.top { flex: none; position: relative; z-index: 30; margin: 0; padding: 6px max(28px, calc((100% - var(--page-w)) / 2)) 12px;
     background: var(--chrome); border-bottom: 1px solid var(--line); box-shadow: 0 10px 28px rgba(0, 10, 20, .28); }
   html.in-app .shell { flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0; overflow-y: auto; outline: none;
-    padding: 0 max(28px, calc((100% - 1276px) / 2)) 30px;
+    padding: 0 max(28px, calc((100% - var(--page-w)) / 2)) 30px;
     background: transparent; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
   /* a slim rounded scrollbar in Loot Radar's colours, without arrow buttons */
   html.in-app ::-webkit-scrollbar { width: 12px; height: 12px; }
@@ -950,8 +951,35 @@ function route() {
   if (p === "settings") { loadPhone(); loadDeals(); }
   if (p === "deals") loadDeals();
   scroller().scrollTo({ top: 0 });
+  fitLists();
 }
 window.addEventListener("hashchange", route);
+
+/* ---------------- long lists (Browse drops, Library, the log) reach down to the bottom of the window,
+   so a big screen shows more rows instead of a fixed-height box with empty space under it */
+function fitLists() {
+  const lists = $$(".page.on .scroll, .page.on .log");
+  if (matchMedia("(max-width: 760px)").matches) { lists.forEach(el => el.style.maxHeight = ""); return; }  // phones: as before
+  const sh = $(".shell"), cs = getComputedStyle(sh);
+  const viewTop = IN_APP ? sh.getBoundingClientRect().top : 0;
+  const viewH = IN_APP ? sh.clientHeight : innerHeight;
+  const scrolled = IN_APP ? sh.scrollTop : scrollY;
+  const below = parseFloat(cs.paddingBottom) + (IN_APP ? 0 : parseFloat(cs.marginBottom));
+  lists.forEach(el => {
+    const p = el.closest(".panel") || el, r = el.getBoundingClientRect(), panel = p.getBoundingClientRect();
+    const top = r.top - viewTop + scrolled;  // where the list starts, measured from the top of the page
+    const under = panel.bottom - r.bottom + parseFloat(getComputedStyle(p).marginBottom);  // the panel's edge and gap under the list
+    const h = Math.max(360, Math.floor(viewH - top - under - below - 1)) + "px";
+    if (el.style.maxHeight !== h) el.style.maxHeight = h;
+  });
+}
+let fitTimer = 0;
+const fitSoon = () => { cancelAnimationFrame(fitTimer); fitTimer = requestAnimationFrame(fitLists); };
+window.addEventListener("resize", fitSoon);
+if ("ResizeObserver" in window) {  // banners or text above a list change its starting point
+  const ro = new ResizeObserver(fitSoon);
+  $$(".page .head, .page .phead, .page .legend, .page > .banner, .page > .panel").forEach(el => ro.observe(el));
+}
 
 /* ---------------- bottom dock: the same menu, shown once the top one scrolls out of view */
 (function buildDock() {
