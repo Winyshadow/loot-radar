@@ -435,7 +435,31 @@
     .dock .chip-status { display: none; }
     .toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
   }
+
+  /* ---------- Loot Radar's own window (installed app, ?app=window): window and page as one surface.
+     The menu bar sits right under the title bar in the same colour (window.py paints the title bar),
+     the page fills the window edge to edge, and only the part below the menu scrolls. */
+  :root { --chrome: #0b2636; }
+  html.in-app, html.in-app body { height: 100%; overflow: hidden; }
+  html.in-app body { display: flex; flex-direction: column; padding-bottom: 0; }
+  html.in-app nav.top { flex: none; position: relative; z-index: 30; margin: 0; padding: 6px max(28px, calc((100% - 1276px) / 2)) 12px;
+    background: var(--chrome); border-bottom: 1px solid var(--line); box-shadow: 0 10px 28px rgba(0, 10, 20, .28); }
+  html.in-app .shell { flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0; overflow-y: auto; outline: none;
+    padding: 0 max(28px, calc((100% - 1276px) / 2)) 30px;
+    background: transparent; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  /* a slim rounded scrollbar in Loot Radar's colours, without arrow buttons */
+  html.in-app ::-webkit-scrollbar { width: 12px; height: 12px; }
+  html.in-app ::-webkit-scrollbar-track, html.in-app ::-webkit-scrollbar-corner { background: transparent; }
+  html.in-app ::-webkit-scrollbar-button { display: none; }
+  html.in-app ::-webkit-scrollbar-thumb { background: rgba(160, 220, 245, .2); border: 3px solid transparent; border-radius: 99px; background-clip: padding-box; }
+  html.in-app ::-webkit-scrollbar-thumb:hover { background-color: rgba(160, 220, 245, .35); }
+  html.in-app ::-webkit-scrollbar-thumb:active { background-color: rgba(182, 240, 60, .55); }
+  @media (max-width: 760px) {
+    html.in-app nav.top { padding: 6px 16px 10px; }
+    html.in-app .shell { padding: 0 16px calc(84px + env(safe-area-inset-bottom)); }
+  }
 </style>
+<script>if (/[?&]app=window\b/.test(location.search)) document.documentElement.classList.add("in-app");</script>
 </head>
 <body>
 
@@ -905,6 +929,16 @@ function boxArt(u, w = 84, h = 112) { return String(u || "").replace("{width}", 
 function img(src, cls, alt = "") { return src ? `<img class="${cls}" loading="lazy" src="${esc(src)}" alt="${esc(alt)}" onerror="this.style.visibility='hidden'">` : `<span class="${cls}"></span>`; }
 function dot(id, cls, text, title = "") { const c = $(id); c.className = "dot " + cls; c.innerHTML = `<i></i>${esc(text)}`; c.title = title; }
 
+/* ---------------- Loot Radar's own window: the menu bar moves above the scrolling part (see .in-app in the CSS) */
+const IN_APP = document.documentElement.classList.contains("in-app");
+if (IN_APP) {
+  const sh = $(".shell");
+  document.body.insertBefore($("nav.top"), sh);
+  sh.tabIndex = -1;  // so the arrow keys, Page Down and the space bar scroll the page straight away
+  sh.focus({ preventScroll: true });
+}
+const scroller = () => IN_APP ? $(".shell") : window;
+
 /* ---------------- routing */
 const PAGES = ["overview", "browse", "library", "deals", "activity", "settings"];
 function route() {
@@ -915,7 +949,7 @@ function route() {
   if (p === "browse" && !ALL) loadAllDrops();
   if (p === "settings") { loadPhone(); loadDeals(); }
   if (p === "deals") loadDeals();
-  window.scrollTo({ top: 0 });
+  scroller().scrollTo({ top: 0 });
 }
 window.addEventListener("hashchange", route);
 
@@ -933,7 +967,7 @@ window.addEventListener("hashchange", route);
   if ("IntersectionObserver" in window)
     new IntersectionObserver(([e]) => dock.classList.toggle("show", !e.isIntersecting), { threshold: 0 }).observe(top);
   else dock.classList.add("show");
-  $("#dock-status").addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+  $("#dock-status").addEventListener("click", () => scroller().scrollTo({ top: 0, behavior: "smooth" }));
 })();
 /* ---------------- game deals (wishlist discounts) */
 let DEALS = null, dealFilter = "all", dealsPoll = null;

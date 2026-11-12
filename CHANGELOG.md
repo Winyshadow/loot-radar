@@ -6,6 +6,10 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 2.0.1 (2026-11-12)
+
+- **The Loot Radar window now feels like one app.** The title bar has the same colour as the menu bar, so they read as one band. The page fills the window edge to edge (no more rounded card with a gap around it), the menu stays put at the top while only the page below it scrolls, and the scrollbar is slim and in Loot Radar's colours. (Windows 11 colours the title bar; Windows 10 keeps its dark one.) In the browser, the dashboard looks the same as before.
+
 ## 2.0.0 (2026-11-12)
 
 - **Loot Radar is now a normal Windows app.** Download **LootRadarSetup.exe** from the release, click through the installer (no admin rights needed) and that's it: no Python, no START.bat. It goes in the Start menu and the Windows apps list, can put a shortcut on your desktop and start with Windows, and uninstalls like any program (it asks whether to keep your settings).
