@@ -32,6 +32,11 @@ So: whatever is on `main` with a higher `VERSION` reaches zip copies straight aw
 - `build\build.ps1` builds into `%LOCALAPPDATA%\LootRadarBuild\dist` (outside OneDrive: OneDrive locks PyInstaller's files). Needs `build\.venv` (`app\requirements.txt` + `build\requirements-build.txt`) and Inno Setup 6 (installed per user via winget on the owner's PC).
 - Test with a throwaway data folder: set `LOOTRADAR_HOME` (data/miner location) and optionally `LOOTRADAR_RELEASE_API` (a local JSON imitating GitHub's releases/latest) before starting `LootRadar.exe` or the setup; both inherit to the processes they start. Stop the zip copy first (both use port 5577).
 - The installed app rewrites the "start with Windows" entry to itself (`autostart.refresh_path`), and uninstalling removes it: after a local test, restart the zip copy and set `start_with_windows` again.
+- **Never start the owner's own Loot Radar, its setup or the miner from Claude's shell.** The Claude desktop app is a Windows (MSIX) package. Everything started from its shell, and everything those programs start, runs inside its container:
+  - their `%LOCALAPPDATA%`/`%APPDATA%` and HKCU writes go to `AppData\Local\Packages\Claude_*\LocalCache` instead;
+  - they are killed when Claude updates or restarts.
+  
+  This happened on 2026-11-13: settings looked "gone" and Loot Radar closed overnight. Start the owner's copy with `explorer.exe "<path>"`, which runs outside the container, or ask the owner to start it.
 
 ## Layout
 
