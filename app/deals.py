@@ -263,17 +263,53 @@ def approx(value, fx: dict | None) -> str:
     return f"≈ {sym} {v:,.0f}" if v >= 100 else f"≈ {sym} {v:,.2f}"
 
 
+# ------------------------------------------------------------------ fake key-shop listings
+# Some resellers list games that aren't out yet at a made-up price (often about $105, the same on
+# several games) before any official price exists. GG.deals passes these on as "the cheapest key"
+# and, being the only price ever seen, "the lowest ever". We hide such prices instead of showing or
+# pinging them.
+KEY_MAX_RATIO = 1.5        # a key costing 50% more than the official store is not a real deal price
+KEY_CEILING_USD = 80.0     # with no official price yet: above any normal launch price = placeholder
+
+
+def key_ceiling(currency: str) -> float | None:
+    """KEY_CEILING_USD in GG.deals' currency (None if no exchange rate is known)."""
+    cur = (currency or "").upper()
+    if cur in ("", "USD"):
+        return KEY_CEILING_USD
+    rate = ((fx_rates("USD") or {}).get("rates") or {}).get(cur)
+    return KEY_CEILING_USD * float(rate) if rate else None
+
+
+def screen_keyshop(g: dict, steam: dict, ceiling: float | None) -> dict:
+    """The GG.deals row with a fake-looking key-shop price taken out (kept in "key_hidden" to show why)."""
+    key, retail = g.get("keyshop"), g.get("retail")
+    if key is None:
+        return g
+    why = ""
+    if retail:
+        if key > retail * KEY_MAX_RATIO:
+            why = "far above the official store price"
+    elif steam.get("price") is None and ceiling is not None and key > ceiling:
+        why = "no official price yet, and higher than any normal launch price"
+    if not why:
+        return g
+    return {**g, "keyshop": None, "low_keyshop": None, "key_hidden": {"price": key, "why": why}}
+
+
 # ------------------------------------------------------------------ deciding what's a deal
 def reasons(row: dict, min_discount: int, keyshops: bool, prev: dict | None) -> list[str]:
     """Why this game is worth a ping right now (empty = not a deal).
     "Lowest ever" only counts when the price has just dropped (or Steam has it on sale), so a game
-    that has simply never been discounted doesn't count as a deal."""
+    that has simply never been discounted doesn't count as a deal. It also needs an official price
+    (Steam's or another store's) to compare with: a key for a game nobody sells yet can't be a deal."""
     out = []
     s, g, prev = row.get("steam") or {}, row.get("gg") or {}, prev or {}
     if (s.get("discount") or 0) >= min_discount:
         out.append("steam_sale")
     on_sale = (s.get("discount") or 0) > 0
-    if keyshops:  # the official-store price isn't used for pings (Steam's own price covers that)
+    official = s.get("price") is not None or bool(g.get("retail"))
+    if keyshops and official:  # the official-store price isn't used for pings (Steam's own price covers that)
         now, ever, before = g.get("keyshop"), g.get("low_keyshop"), prev.get("keyshop")
         if now is not None and ever is not None and now <= ever and (on_sale or (before is not None and now < before)):
             out.append("key_low")
@@ -426,8 +462,9 @@ def _check(force: bool, ping: bool) -> dict:
     hook = cfg.get("deals_webhook") or cfg.get("discord_webhook") or ""
     fx = fx_for({"rows": [{"steam": steam.get(a) or {}, "gg": gg.get(a) or {}} for a in watch]}, cfg) if gg else None
     rows, embeds = [], []
+    ceiling = key_ceiling(next((v.get("currency") for v in gg.values() if v.get("currency")), "")) if gg else None
     for a in watch:
-        info, g = names.get(str(a)) or {}, gg.get(a) or {}
+        info, g = names.get(str(a)) or {}, screen_keyshop(gg.get(a) or {}, steam.get(a) or {}, ceiling)
         row = {
             "appid": a, "name": info.get("name") or g.get("title") or f"App {a}", "image": info.get("image") or "",
             "store_url": f"{STORE}/app/{a}/", "gg_url": g.get("url") or "", "manual": a in extra and a not in wish,

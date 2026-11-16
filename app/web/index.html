@@ -1069,7 +1069,9 @@ function renderDeals() {
   bn.style.flexDirection = "column"; bn.style.alignItems = "flex-start";
   let list = rows;
   if (dealFilter === "sale") list = rows.filter(r => r.on_sale);
-  if (dealFilter === "low") list = rows.filter(r => { const g = r.gg || {}; return keyshops && g.keyshop != null && g.low_keyshop != null && g.keyshop <= g.low_keyshop; });
+  // "Lowest ever" needs an official price to compare with (a key for a game nobody sells yet isn't a deal)
+  const official = r => (r.steam || {}).price != null || !!(r.gg || {}).retail;
+  if (dealFilter === "low") list = rows.filter(r => { const g = r.gg || {}; return keyshops && official(r) && g.keyshop != null && g.low_keyshop != null && g.keyshop <= g.low_keyshop; });
   if (!list.length) {
     $("#deals").innerHTML = `<div class="empty">${!st.deals_enabled ? "Switch deals on to start." : !d.updated ? (d.checking ? "Checking your wishlist…" : "Press <b>Check deals now</b>.") : rows.length ? "Nothing in this filter right now." : "No games to watch yet."}</div>`;
     return;
@@ -1084,8 +1086,10 @@ function renderDeals() {
       const steamCell = s.price == null ? `<span class="faint">${r.free ? "Free to play" : r.soon ? "Not out yet" : "No Steam price yet"}</span>`
         : `${s.discount ? `<span class="tag live">−${s.discount}%</span> ` : ""}<b>${esc(s.text || money(s.price, s.currency))}</b>${s.discount && s.initial_text ? `<s class="faint">${esc(s.initial_text)}</s>` : ""}`;
       const atLow = g.keyshop != null && g.low_keyshop != null && g.keyshop <= g.low_keyshop;
-      const keyCell = !keyshops ? "" : !d.has_gg ? `<span class="faint">needs a GG.deals key</span>` : g.keyshop == null ? `<span class="faint">—</span>`
-        : `<b>${money(g.keyshop, g.currency)}</b>${low(g.keyshop, g.low_keyshop)}${est(g.keyshop)}${atLow || g.low_keyshop == null ? "" : `<div class="faint" style="font-size:11px">lowest ever ${money(g.low_keyshop, g.currency)}${lowEst(g.low_keyshop)}</div>`}<div class="kcheck" title="${esc(KEY_CHECK_TIP)}">⚠️ Check DRM · region · account/key</div>`;
+      const hid = g.key_hidden;
+      const keyCell = !keyshops ? "" : !d.has_gg ? `<span class="faint">needs a GG.deals key</span>`
+        : g.keyshop == null ? (hid ? `<span class="faint" title="${esc(`The cheapest key-shop listing (${money(hid.price, g.currency)}) looks fake: ${hid.why}. Loot Radar ignores it and won't ping it.`)}">Hidden: looks fake</span>` : `<span class="faint">—</span>`)
+        : `<b>${money(g.keyshop, g.currency)}</b>${official(r) ? low(g.keyshop, g.low_keyshop) : ""}${est(g.keyshop)}${atLow || g.low_keyshop == null ? "" : `<div class="faint" style="font-size:11px">lowest ever ${money(g.low_keyshop, g.currency)}${lowEst(g.low_keyshop)}</div>`}<div class="kcheck" title="${esc(KEY_CHECK_TIP)}">⚠️ Check DRM · region · account/key</div>`;
       return `<div class="deal">
         ${r.image ? `<img class="cover" loading="lazy" src="${esc(r.image)}" alt="" onerror="this.style.visibility='hidden'">` : `<span></span>`}
         <div class="nm" style="min-width:0"><b>${esc(r.name)}</b><div class="faint" style="font-size:12px">${r.manual ? `Added by you · <a href="#" data-deal-remove="${r.appid}">remove</a>` : "On your wishlist"}${(r.why || []).length ? ' · <span style="color:var(--lime)">deal pinged</span>' : ""}</div></div>

@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 2.1.1 (2026-11-16)
+
+- **Fake key-shop prices are filtered out.** Some resellers list games that aren't out yet at a made-up price (about $105, the same on several games). GG.deals passed these on as the cheapest key and the "lowest ever", so Loot Radar showed them and could ping them. Now a key-shop price is hidden and never pinged when it's far above the official store price (more than 1.5×), or when there's no official price yet and it's above any normal launch price (about $80). The Deals page shows **Hidden: looks fake** there; hover it to see the listing and why.
+- **"Lowest ever" needs a real price to compare with.** A key for a game no store sells yet no longer counts as "lowest ever" and isn't pinged. Pre-orders that do have an official price (like Fable) still work as before.
+
 ## 2.1.0 (2026-11-16)
 
 - **Completed drops, sorted by game.** Instead of one long grid, Completed drops now shows one row per game: its picture, how many rewards you've collected, and the latest one with how long ago. The game with the newest drop is always at the top, so the order follows your latest drops. Click a game to see its rewards (newest first) as the same tiles as before; click again to close it. Loot Radar remembers which games you left open, and **Expand all / Collapse all** opens or closes them all. Clearing works as before.
