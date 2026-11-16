@@ -6,6 +6,11 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 2.0.4 (2026-11-16)
+
+- **Deals cope with a connection hiccup.** If Steam can't be reached for your wishlist, Loot Radar now tries again a few seconds later, keeps showing the games from the last check that worked (instead of an empty list), and says it was a connection problem (it used to blame your Steam privacy settings). It tries again by itself every 30 minutes, and whenever you open the Deals page (on the PC or your phone), instead of waiting 6 hours or for "Check deals now".
+- A failed check no longer forgets the last known prices, so a later check doesn't ping Discord about deals it already told you about.
+
 ## 2.0.3 (2026-11-12)
 
 - **No more "update available" right after updating.** The installed app kept showing the update it had just installed (until its next check, up to 6 hours later). It now knows straight away that it's up to date.

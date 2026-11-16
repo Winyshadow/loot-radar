@@ -30,6 +30,8 @@ STEAM_API = "https://api.steampowered.com"
 STORE = "https://store.steampowered.com"
 GG_API = "https://api.gg.deals/v1/prices/by-steam-app-id/"
 CHECK_SECONDS = 6 * 3600
+RETRY_SECONDS = 30 * 60      # after a check that hit a problem: try again sooner
+WISHLIST_WAITS = (5, 20)     # seconds between tries when Steam can't be reached
 TIMEOUT = 25
 HEADERS = {"User-Agent": "LootRadar (desktop app; deals check)"}
 REGIONS = ("us", "eu", "gb", "au", "ca", "br", "pl", "de", "fr", "nl", "se", "dk", "no", "ch")
@@ -42,14 +44,26 @@ class DealsError(Exception):
 
 
 # ------------------------------------------------------------------ sources
-def wishlist(steam_id: str) -> list[int]:
-    """App IDs on your Steam wishlist, highest priority first. Empty if it's empty or hidden."""
-    try:
-        r = requests.get(f"{STEAM_API}/IWishlistService/GetWishlist/v1/", params={"steamid": steam_id},
-                         headers=HEADERS, timeout=TIMEOUT)
-        items = (r.json().get("response") or {}).get("items") or []
-    except (requests.RequestException, ValueError) as exc:
-        raise DealsError(f"Couldn't read your Steam wishlist ({exc.__class__.__name__}).") from exc
+def wishlist(steam_id: str, waits: tuple = WISHLIST_WAITS) -> list[int]:
+    """App IDs on your Steam wishlist, highest priority first. Empty if it's empty or hidden.
+    A connection problem or a Steam error is tried again a couple of times, then raises DealsError
+    (never an empty list, which would look like an empty or hidden wishlist)."""
+    problem = ""
+    for wait in (0, *waits):
+        time.sleep(wait)
+        try:
+            r = requests.get(f"{STEAM_API}/IWishlistService/GetWishlist/v1/", params={"steamid": steam_id},
+                             headers=HEADERS, timeout=TIMEOUT)
+            if r.status_code != 200:
+                problem = f"Steam answered with error {r.status_code}"
+                continue
+            items = (r.json().get("response") or {}).get("items") or []
+            break
+        except (requests.RequestException, ValueError) as exc:
+            problem = "couldn't reach Steam (no internet, or Steam is down)" if isinstance(
+                exc, (requests.ConnectionError, requests.Timeout)) else f"Steam's answer was unreadable ({exc.__class__.__name__})"
+    else:
+        raise DealsError(f"Couldn't read your Steam wishlist: {problem}.")
     items.sort(key=lambda i: (i.get("priority") or 0) or 10**6)
     return [int(i["appid"]) for i in items if i.get("appid")]
 
@@ -342,8 +356,9 @@ def deal_embed(row: dict, why: list[str], keyshops: bool, fx: dict | None = None
 
 # ------------------------------------------------------------------ the check
 def due() -> bool:
-    cfg = store.load_config()
-    return bool(cfg.get("deals_enabled")) and time.time() - (store.load_state().get("last_deals_check") or 0) > CHECK_SECONDS
+    cfg, state = store.load_config(), store.load_state()
+    every = RETRY_SECONDS if (state.get("deals") or {}).get("errors") else CHECK_SECONDS
+    return bool(cfg.get("deals_enabled")) and time.time() - (state.get("last_deals_check") or 0) > every
 
 
 def check(force: bool = False, ping: bool = True) -> dict:
@@ -363,12 +378,18 @@ def _check(force: bool, ping: bool) -> dict:
     now = int(time.time())
     errors, source = [], []
     wish: list[int] = []
+    wish_stale = False
+    prev_block = state.get("deals") or {}
     if cfg.get("steam_id"):
         try:
             wish = wishlist(cfg["steam_id"])
             source.append("wishlist")
         except DealsError as exc:
-            errors.append(str(exc))
+            # Keep the games from the last check (prices still refresh) instead of an empty list.
+            wish = [int(r["appid"]) for r in prev_block.get("rows") or [] if not r.get("manual") and r.get("appid")]
+            wish_stale = bool(wish)
+            errors.append(str(exc) + (" Showing the games from your last check; trying again in 30 minutes."
+                                      if wish_stale else " Trying again in 30 minutes."))
     extra = [int(x) for x in cfg.get("deals_extra") or [] if str(x).isdigit()]
     watch = list(dict.fromkeys(wish + extra))
     names = dict(state.get("deal_names") or {})
@@ -419,7 +440,8 @@ def _check(force: bool, ping: bool) -> dict:
         rows.append(row)
         last = alerts.get(str(a))
         if not why:
-            alerts.pop(str(a), None)  # deal over: a later sale pings again
+            if row["steam"] or g:  # deal over: a later sale pings again (not when prices just didn't load)
+                alerts.pop(str(a), None)
         elif should_ping(why, row, last):
             if ping and hook:
                 embeds.append(deal_embed(row, why, keyshops, fx))
@@ -434,11 +456,14 @@ def _check(force: bool, ping: bool) -> dict:
     rows.sort(key=lambda r: (-(r["steam"].get("discount") or 0), not r["new_low"], r["name"].lower()))
     block = {
         "updated": now, "errors": errors, "source": source, "wishlist_count": len(wish), "extra_count": len(extra),
+        "wishlist_failed": bool(cfg.get("steam_id")) and "wishlist" not in source, "wishlist_stale": wish_stale,
         "has_gg": bool(cfg.get("ggdeals_key")), "rows": rows, "fx": fx,
     }
-    store.patch_state(
+    new_prices = {str(r["appid"]): {"retail": r["gg"].get("retail"), "keyshop": r["gg"].get("keyshop")}
+                  for r in rows if r["gg"] or not errors}
+    store.patch_state(  # after a problem, prices that couldn't be fetched keep their last known values
         deals=block, deal_names=names, deal_alerts=alerts, last_deals_check=now,
-        deal_prices={str(r["appid"]): {"retail": r["gg"].get("retail"), "keyshop": r["gg"].get("keyshop")} for r in rows},
+        deal_prices={**prev_prices, **new_prices} if errors else new_prices,
     )
     if errors:
         store.log("Deals check: " + " ".join(errors), "warn")

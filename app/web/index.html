@@ -1002,6 +1002,10 @@ let DEALS = null, dealFilter = "all", dealsPoll = null;
 async function loadDeals() {
   if (!S) { setTimeout(loadDeals, 600); return; }  // settings not loaded yet (Deals opened first)
   try { DEALS = await api("/api/deals"); } catch (e) { DEALS = { error: e.message, rows: [] }; }
+  // The last check hit a problem: opening Deals (on the PC or the phone) tries again, at most once a minute
+  if ((DEALS.errors || []).length && !DEALS.checking && S.settings.deals_enabled && nowS() - (DEALS.updated || 0) > 60) {
+    try { await api("/api/deals/check", {}); DEALS.checking = true; } catch {}
+  }
   renderDeals(); renderSections();
   clearTimeout(dealsPoll);
   if (DEALS.checking) dealsPoll = setTimeout(loadDeals, 3000);  // a check is running: refresh when it's done
@@ -1037,8 +1041,10 @@ function renderDeals() {
   else {
     if (!d.has_gg && d.updated) notes.push(`<b>Only Steam prices for now.</b> <span class="muted">Add a free GG.deals key in Settings → Game deals to compare key-shop prices too.</span>`);
     if (d.updated && !st.steam_id) notes.push(`<b>Steam isn't connected,</b> <span class="muted">so your wishlist can't be read. Connect Steam in Settings, or add games with the box below.</span>`);
+    else if (d.wishlist_failed) notes.push(`<b>Couldn't reach Steam for your wishlist</b> <span class="muted">(a connection hiccup, not your settings).${d.wishlist_stale ? " These are the games from the last check that worked." : ""} Loot Radar tries again by itself${d.checking ? " right now…" : " every 30 minutes, and whenever you open this page."}</span>`);
     else if (d.updated && !d.wishlist_count) notes.push(`<b>Your Steam wishlist came back empty.</b> <span class="muted">If it has games on it, make it visible: Steam → your profile → Edit Profile → Privacy Settings → set <b>Game details</b> to Public. Or add games with the box below.</span>`);
-    (d.errors || []).forEach(e => notes.push(`<b>⚠️</b> <span class="muted">${esc(e)}</span>`));
+    (d.errors || []).filter(e => !(d.wishlist_failed && /wishlist/i.test(e)))  // that one has its own note above
+      .forEach(e => notes.push(`<b>⚠️</b> <span class="muted">${esc(e)}</span>`));
     if (keyshops && d.has_gg) notes.push(`<b>⚠️ Key shops: check DRM · region · account/key before buying.</b> <span class="muted">1) <b>DRM:</b> GG.deals doesn't say which platform the cheapest key is for, and it's sometimes an Xbox or other non-Steam key, so check it says <b>Steam</b>. 2) <b>Region:</b> <b>GLOBAL</b> or <b>ROW</b> (Rest of World) keys work in South Africa; EU-, US-, UK-, Asia- or RU/CIS-only keys may not activate on your Steam account. 3) <b>Account/key:</b> buy a <b>game key</b> ("Steam Key" / "CD Key"), not an <b>account</b> or "gift": accounts aren't yours and can be taken back. The key-shop price here is the cheapest offer of any kind. <b>All prices</b> opens GG.deals, which lists every offer. Buying on Steam itself is always the safe choice.</span>`);
   }
   const bn = $("#deals-banner");
