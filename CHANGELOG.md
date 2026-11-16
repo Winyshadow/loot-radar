@@ -6,6 +6,10 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 2.1.0 (2026-11-16)
+
+- **Completed drops, sorted by game.** Instead of one long grid, Completed drops now shows one row per game: its picture, how many rewards you've collected, and the latest one with how long ago. The game with the newest drop is always at the top, so the order follows your latest drops. Click a game to see its rewards (newest first) as the same tiles as before; click again to close it. Loot Radar remembers which games you left open, and **Expand all / Collapse all** opens or closes them all. Clearing works as before.
+
 ## 2.0.4 (2026-11-16)
 
 - **Deals cope with a connection hiccup.** If Steam can't be reached for your wishlist, Loot Radar now tries again a few seconds later, keeps showing the games from the last check that worked (instead of an empty list), and says it was a connection problem (it used to blame your Steam privacy settings). It tries again by itself every 30 minutes, and whenever you open the Deals page (on the PC or your phone), instead of waiting 6 hours or for "Check deals now".
