@@ -13,6 +13,7 @@ import threading
 
 _win = None
 _ready = threading.Event()
+_state = {"hidden": False}  # is the window hidden in the tray right now?
 TITLE = "Loot Radar"
 CHROME = "#0b2636"  # the menu bar's colour (--chrome in index.html); the title bar gets it too
 TEXT = "#e8f3f7"
@@ -86,6 +87,18 @@ def show() -> None:
     except Exception:
         pass
     _paint_title_bar()
+    _tell_page(hidden=False)
+
+
+def _tell_page(hidden: bool) -> None:
+    """Let the page know whether it's on screen: while hidden in the tray it stops asking
+    Loot Radar for updates every few seconds, and catches up the moment it's shown."""
+    _state["hidden"] = hidden
+    try:
+        _win.evaluate_js(f"window.__lrHidden = {'true' if hidden else 'false'};"
+                         " if (window.lrVisible) window.lrVisible();")
+    except Exception:
+        pass
 
 
 def run(url: str, hidden: bool, storage: str, on_first_close=None) -> None:
@@ -96,12 +109,14 @@ def run(url: str, hidden: bool, storage: str, on_first_close=None) -> None:
     import webview
     webview.settings["OPEN_EXTERNAL_LINKS_IN_BROWSER"] = True  # target=_blank links: your browser
     told = {"done": False}
+    _state["hidden"] = hidden
 
     def closing():
         try:
             _win.hide()
         except Exception:
             pass
+        threading.Thread(target=_tell_page, args=(True,), daemon=True).start()
         if on_first_close and not told["done"]:
             told["done"] = True
             on_first_close()
@@ -110,13 +125,18 @@ def run(url: str, hidden: bool, storage: str, on_first_close=None) -> None:
     def ready():
         _paint_title_bar()
         _ready.set()
+        threading.Thread(target=_tell_page, args=(_state["hidden"],), daemon=True).start()
+
+    def shown():
+        _state["hidden"] = False
+        ready()
 
     # ?app=window: the page drops its browser look (rounded card, gap) and fills the window
     url = url.rstrip("/") + "/?app=window"
     _win = webview.create_window(TITLE, url, width=1380, height=900, min_size=(420, 560),
                                  hidden=hidden, background_color="#071b27", text_select=True)
     _win.events.closing += closing
-    _win.events.shown += ready
+    _win.events.shown += shown
     _win.events.loaded += ready  # a hidden window loads its page too
     try:
         webview.start(gui="edgechromium", private_mode=False, storage_path=storage)

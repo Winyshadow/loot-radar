@@ -93,21 +93,21 @@ def running() -> bool:
     return bool(processes())
 
 
-def running_exe() -> str | None:
-    for p in processes():
+def run_state() -> tuple[bool, bool]:
+    """(any miner running, the built-in one is running), from one look at the process list."""
+    procs = processes()
+    exe = None
+    for p in procs:
         try:
-            return p.exe()
+            exe = p.exe()
+            break
         except Exception:
             continue
-    return None
-
-
-def is_builtin_running() -> bool:
-    exe = running_exe()
     try:
-        return bool(exe) and Path(exe).resolve() == EXE.resolve()
+        builtin = bool(exe) and Path(exe).resolve() == EXE.resolve()
     except OSError:
-        return False
+        builtin = False
+    return bool(procs), builtin
 
 
 def stop(timeout: float = 10) -> None:
@@ -171,18 +171,20 @@ def autostart() -> None:
 
 
 # ------------------------------------------------------------------ install / update
-def install_async(release: dict | None = None) -> bool:
-    """Download + install (or update to) the newest miner in the background."""
+def install_async(release: dict | None = None, auto: bool = False) -> bool:
+    """Download + install (or update to) the newest miner in the background.
+    auto=True (the automatic update): a miner you had stopped stays stopped afterwards."""
     with _job_lock:
         if job["state"] in ("downloading", "installing"):
             return False
         job.update(state="downloading", note="Checking GitHub…", pct=0)
-    threading.Thread(target=_install, args=(release,), daemon=True).start()
+    threading.Thread(target=_install, args=(release, auto), daemon=True).start()
     return True
 
 
-def _install(release: dict | None) -> None:
+def _install(release: dict | None, auto: bool = False) -> None:
     tmp = MINER_DIR / "_download"
+    stopped = False  # True once we've stopped a running miner (so it must come back)
     try:
         rel = release or latest_release()
         if not rel.get("url"):
@@ -216,8 +218,11 @@ def _install(release: dict | None) -> None:
             raise RuntimeError("The download didn't contain TwitchDropsMiner.exe.")
 
         was_running = running()
-        job.update(note="Stopping the miner…")
-        stop()
+        had_old = APP_DIR.exists()
+        if was_running:
+            job.update(note="Stopping the miner…")
+            stop()
+            stopped = True
         job.update(note="Installing…")
         old = MINER_DIR / f"_old_{int(time.time())}"
         if APP_DIR.exists():
@@ -231,11 +236,17 @@ def _install(release: dict | None) -> None:
         if os.name != "nt":
             os.chmod(EXE, 0o755)  # zip files don't keep the "executable" flag outside Windows
 
-        verb = "Updated" if was_running else "Installed"
-        job.update(note="Starting the miner…")
+        verb = "Updated" if had_old else "Installed"
         try:
-            start()
-            job.update(state="done", note=f"{verb} the drop miner v{rel['version']}.", pct=100)
+            # Start it if it was running, or if you pressed Install/Update yourself. An automatic
+            # update leaves a miner you had stopped switched off.
+            if was_running or not auto:
+                job.update(note="Starting the miner…")
+                start()
+                job.update(state="done", note=f"{verb} the drop miner v{rel['version']}.", pct=100)
+            else:
+                job.update(state="done", pct=100,
+                           note=f"{verb} the drop miner v{rel['version']}. It stays stopped, as you left it.")
         except Exception as exc:
             job.update(state="error", pct=100,
                        note=f"{verb} the drop miner v{rel['version']}, but it didn't start ({exc}). Press Start.")
@@ -250,11 +261,13 @@ def _install(release: dict | None) -> None:
         job.update(state="error", note=msg)
         store.log(f"Miner install failed: {msg}", "error")
         # the old copy is still in place if renaming never happened; restart whatever we have
+        # (only if we stopped it: a miner that wasn't running stays that way)
         try:
             if not APP_DIR.exists():
                 olds = sorted(MINER_DIR.glob("_old_*"))
                 if olds:
                     olds[-1].rename(APP_DIR)
-            start()
+            if stopped:
+                start()
         except Exception:
             pass

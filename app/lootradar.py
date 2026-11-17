@@ -6,6 +6,7 @@ Run with START.bat (zip copy) or LootRadar.exe (installed app). Dashboard: http:
 from __future__ import annotations
 
 import argparse
+import copy
 import os
 import re
 import sys
@@ -37,6 +38,21 @@ URL = f"http://127.0.0.1:{PORT}"
 
 app = Flask(__name__, static_folder=None)
 watcher = None  # MutedWatcher, created at startup
+
+
+DISCORD_HOSTS = {"discord.com", "discordapp.com", "ptb.discord.com", "canary.discord.com"}
+
+
+def is_discord_webhook(url: str) -> bool:
+    """A real Discord webhook link: https://discord.com/api/webhooks/... (not just a link that
+    mentions it somewhere, e.g. in its query)."""
+    from urllib.parse import urlsplit
+    try:
+        u = urlsplit(str(url).strip())
+    except ValueError:
+        return False
+    return (u.scheme == "https" and (u.hostname or "").lower() in DISCORD_HOSTS
+            and u.path.startswith("/api/webhooks/"))
 
 
 def _err(msg: str, code: int = 400):
@@ -163,6 +179,12 @@ def api_phone_qr():
     return png, 200, {"Content-Type": "image/png", "Cache-Control": "no-store"}
 
 
+@app.get("/api/ping")
+def api_ping():
+    """"Is Loot Radar running?" for a second start (launcher.py). Never waits on anything."""
+    return jsonify({"ok": True})
+
+
 @app.get("/")
 def index():
     return send_from_directory(WEB, "index.html")
@@ -195,12 +217,12 @@ def api_show():
 _account = {"at": 0.0, "value": {"state": "unknown", "user": "", "status": ""}}
 
 
-def _miner_account() -> dict:
+def _miner_account(running: bool) -> dict:
     """Which Twitch account the miner is signed in to (asked at most every 15 s), so the
     dashboard can show it without anyone opening the miner itself."""
     if time.time() - _account["at"] < 15:
         return _account["value"]
-    if not minerctl.running():
+    if not running:
         value = {"state": "stopped", "user": "", "status": ""}
     else:
         cfg = store.load_config()
@@ -225,6 +247,7 @@ def api_state():
     settings["start_with_windows"] = autostart.enabled()  # lives in Windows, not in config.json
     remote = phone.is_phone_request(request)
     settings = phone.redact(settings) if remote else {k: v for k, v in settings.items() if k != "phone_token"}
+    miner_running, miner_builtin_running = minerctl.run_state()  # one look at the process list
     return jsonify({
         "remote": remote,
         "settings": settings,
@@ -239,7 +262,7 @@ def api_state():
         "muted_manual": state.get("muted_manual"),
         "miner_memory": state.get("miner_memory"),
         "miner_login": getattr(watcher, "miner_login", {"state": "idle", "note": ""}),
-        "miner_account": _miner_account(),
+        "miner_account": _miner_account(miner_running),
         "last_check": state.get("last_check", 0),
         "library_updated": state.get("library_updated", 0),
         "version": updates.current_version(),
@@ -249,8 +272,8 @@ def api_state():
         "update_job": updates.job,
         "miner_job": minerctl.job,
         "miner_builtin": minerctl.installed(),
-        "miner_running": minerctl.running(),
-        "miner_running_builtin": minerctl.is_builtin_running(),
+        "miner_running": miner_running,
+        "miner_running_builtin": miner_builtin_running,
         "now": int(time.time()),
     })
 
@@ -346,6 +369,7 @@ def api_settings():
         store.log("Loot Radar will now start when you sign in to Windows." if data["start_with_windows"]
                   else "Loot Radar will no longer start with Windows.")
     cfg = store.load_config()
+    before = copy.deepcopy(cfg)
     for key in ("steam_api_key", "discord_webhook", "miner_url", "miner_password", "news_mode",
                 "ggdeals_key", "deals_webhook"):
         if key in data:
@@ -364,9 +388,10 @@ def api_settings():
     for key in ("deals_enabled", "deals_keyshops"):
         if key in data:
             cfg[key] = bool(data[key])
-    if cfg.get("deals_webhook") and "discord.com/api/webhooks/" not in cfg["deals_webhook"] \
-            and "discordapp.com/api/webhooks/" not in cfg["deals_webhook"]:
-        return _err("The deals channel link doesn't look like a Discord webhook (it should contain discord.com/api/webhooks/).")
+    # (only checked when you change it, so an older saved link never blocks other settings)
+    if cfg.get("deals_webhook") and cfg["deals_webhook"] != before.get("deals_webhook") \
+            and not is_discord_webhook(cfg["deals_webhook"]):
+        return _err("The deals channel link doesn't look like a Discord webhook (it should start with https://discord.com/api/webhooks/).")
     for key, low in (("check_minutes", 5), ("news_check_hours", 1), ("miner_memory_limit_mb", 0)):
         if key in data:
             try:
@@ -382,9 +407,9 @@ def api_settings():
             cfg[key] = bool(data[key])
     if "sync_miner_webhook" in data:
         cfg["sync_miner_webhook"] = bool(data["sync_miner_webhook"])
-    if cfg.get("discord_webhook") and "discord.com/api/webhooks/" not in cfg["discord_webhook"] \
-            and "discordapp.com/api/webhooks/" not in cfg["discord_webhook"]:
-        return _err("That doesn't look like a Discord webhook link (it should contain discord.com/api/webhooks/).")
+    if cfg.get("discord_webhook") and cfg["discord_webhook"] != before.get("discord_webhook") \
+            and not is_discord_webhook(cfg["discord_webhook"]):
+        return _err("That doesn't look like a Discord webhook link (it should start with https://discord.com/api/webhooks/).")
     profile = str(data.get("steam_profile_input", cfg.get("steam_profile_input", ""))).strip()
     if profile and (profile != cfg.get("steam_profile_input") or not cfg.get("steam_id")):
         if not cfg.get("steam_api_key"):
@@ -394,7 +419,9 @@ def api_settings():
         except steam.SteamError as exc:
             return _err(str(exc))
         cfg["steam_profile_input"] = profile
-    store.save_config(cfg)
+    # Save only what this request changed (Steam may have taken a moment to answer above, and
+    # the background checks may have saved other things meanwhile).
+    cfg = store.update_config(**{k: v for k, v in cfg.items() if before.get(k) != v})
     first_library = cfg.get("steam_id") and cfg.get("steam_api_key") and not cfg.get("games")
     if first_library:
         try:
@@ -426,23 +453,23 @@ def api_scan():
 @app.post("/api/games/<appid>")
 def api_game(appid):
     data = request.get_json(force=True) or {}
-    cfg = store.load_config()
-    g = (cfg.get("games") or {}).get(appid)
+    if "mode" in data and data["mode"] not in store.MODES:
+        return _err("Unknown mode.")
+    with store.edit_config() as cfg:
+        g = (cfg.get("games") or {}).get(appid)
+        if g:
+            if "mode" in data:
+                g["mode"] = data["mode"]
+            if appid.startswith("tw:") and g.get("mode") == "off":
+                del cfg["games"][appid]
+            elif "twitch_name" in data:
+                g["twitch_name"] = str(data["twitch_name"]).strip()
     if not g:
         return _err("Unknown game.", 404)
-    if "mode" in data:
-        if data["mode"] not in store.MODES:
-            return _err("Unknown mode.")
-        g["mode"] = data["mode"]
-        if appid.startswith("tw:") and g["mode"] == "off":
-            del cfg["games"][appid]
-            store.save_config(cfg)
-            store.log(f"{g['name']}: removed (Twitch-only game).")
-            _bg(checks.run_cycle, watcher)
-            return jsonify({"ok": True})
-    if "twitch_name" in data:
-        g["twitch_name"] = str(data["twitch_name"]).strip()
-    store.save_config(cfg)
+    if appid.startswith("tw:") and g.get("mode") == "off":
+        store.log(f"{g['name']}: removed (Twitch-only game).")
+        _bg(checks.run_cycle, watcher)
+        return jsonify({"ok": True})
     if "mode" in data:
         store.log(f"{g['name']}: set to {dict(off='Off', alerts='Alerts', miner='Auto-mine', muted='Muted stream')[g['mode']]}.")
     _bg(checks.run_cycle, watcher)  # apply right away (miner list, muted mode)
@@ -570,21 +597,23 @@ def api_twitch_game():
         return _err("Type the game's name exactly as Twitch shows it.")
     if mode not in store.MODES:
         return _err("Unknown mode.")
-    cfg = store.load_config()
-    games = cfg.setdefault("games", {})
     key = checks.twitch_key(name)
+    with store.edit_config() as cfg:
+        games = cfg.setdefault("games", {})
+        if mode == "off":
+            removed = games.pop(key, None)
+        else:
+            g = games.get(key) or {"playtime_min": 0, "last_played": 0, "order": 0, "source": "twitch"}
+            g.update(name=name, twitch_name=name, mode=mode)
+            if data.get("box_art"):
+                g["box_art"] = str(data["box_art"])
+            games[key] = g
     if mode == "off":
-        if games.pop(key, None):
+        if removed:
             store.log(f"{name}: removed (Twitch-only game).")
     else:
-        g = games.get(key) or {"playtime_min": 0, "last_played": 0, "order": 0, "source": "twitch"}
-        g.update(name=name, twitch_name=name, mode=mode)
-        if data.get("box_art"):
-            g["box_art"] = str(data["box_art"])
-        games[key] = g
         label = dict(alerts="Alerts", miner="Auto-mine", muted="Muted stream")[mode]
         store.log(f"{name}: added from Twitch, set to {label}.")
-    store.save_config(cfg)
     _bg(checks.run_cycle, watcher)
     return jsonify({"ok": True})
 
@@ -683,6 +712,8 @@ def api_test_discord():
     hook = (request.get_json(silent=True) or {}).get("webhook") or cfg.get("discord_webhook")
     if not hook:
         return _err("Paste your Discord webhook link first.")
+    if not is_discord_webhook(hook):  # never send anything to an address that isn't Discord
+        return _err("That doesn't look like a Discord webhook link (it should start with https://discord.com/api/webhooks/).")
     ok = notify.simple(hook, "✅ Loot Radar is connected",
                        "Drop campaigns and news for the games you pick will show up here.")
     return jsonify({"ok": ok}) if ok else _err("Discord didn't accept the message. Check the webhook link.")
@@ -777,9 +808,11 @@ def _log_to_file() -> None:
 
 
 def _already_running() -> bool:
+    """Same check as launcher.running(): any answer from /api/ping (quick even when busy)."""
     try:
         import requests
-        return requests.get(f"http://127.0.0.1:{PORT}/api/state", timeout=3).status_code == 200
+        requests.get(f"http://127.0.0.1:{PORT}/api/ping", timeout=(3, 10))
+        return True
     except Exception:
         return False
 

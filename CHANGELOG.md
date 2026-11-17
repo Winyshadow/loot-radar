@@ -6,6 +6,20 @@ All notable changes to Loot Radar. Versions follow `MAJOR.MINOR.PATCH`:
 - **Minor** (1.0.x → 1.1.0): a new feature.
 - **Major** (1.x → 2.0.0): a big overhaul.
 
+## 2.1.3 (2026-11-17)
+
+Safety and reliability fixes from a code review.
+
+- **Your settings can't be wiped by a hiccup any more.** If Windows, OneDrive or antivirus briefly blocked `config.json`, or the file got damaged, Loot Radar could carry on with blank settings and save them over your real ones. Now it waits and retries, or uses the previous copy (`config.json.bak`, kept on every save), and never saves blank settings over yours. A damaged file is kept aside as `config.damaged-….json`.
+- **Changes you make are no longer undone by background checks.** The daily Steam library refresh could undo a game or settings change made while it ran, and **Clear all** on completed drops could be undone by a check that was running at the same time.
+- **Phone PIN lockout really locks.** Many PIN guesses sent at once could get past the "5 wrong tries, then wait 10 minutes" rule.
+- **A miner you stopped stays stopped** after an automatic miner update (it used to start again by itself). Pressing Install/Update yourself still starts it.
+- **No second Loot Radar** when the miner is stuck and you open Loot Radar again. Before, it could start a second copy (double Discord pings, two tray icons) or stop the running one.
+- **Old Steam news isn't sent late.** When a game posted more than 3 news items between checks, the older ones arrived on Discord hours later as "new".
+- **Zip-copy updates are all-or-nothing.** If a file is locked halfway, the update is undone and the old version keeps working, instead of a mix of old and new files. Leftover old program files are removed.
+- **Less background work.** The dashboard stops refreshing while its window is hidden in the tray, and checks the list of running programs once per refresh instead of three times.
+- **Stricter Discord link check.** Only real `https://discord.com/api/webhooks/…` links are accepted, and the test message is never sent anywhere else.
+
 ## 2.1.2 (2026-11-17)
 
 - **Share Loot Radar.** Settings → Updates now has the download link to send a friend (github.com/Winyshadow/loot-radar/releases/latest, which always opens the newest version) with a **Copy link** button.

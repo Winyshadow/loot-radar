@@ -137,7 +137,7 @@ def check(force: bool = False) -> dict:
         if (cfg.get("auto_update_miner") and info["miner"]["available"] and builtin
                 and info["miner"].get("has_download")):
             store.log(f"Auto-updating the drop miner to v{info['miner']['latest']}.")
-            minerctl.install_async()
+            minerctl.install_async(auto=True)
         return info
     finally:
         _check_lock.release()
@@ -365,6 +365,74 @@ def _keep(rel: str) -> bool:
     return any(rel == k or rel.startswith(k + "/") for k in KEEP)
 
 
+def _apply_zip(zf: zipfile.ZipFile, names: list[str], top: str) -> int:
+    """Put the downloaded version in place, all or nothing. Returns how many files changed.
+
+    1. Every changed file is written next to its old one as <name>.tmp. If that fails (disk full,
+       a file locked by OneDrive or antivirus), the .tmp files are removed and nothing changed.
+    2. Then the old files are swapped for the new ones, each old one kept as <name>.old. If a swap
+       fails, the ones already swapped are put back, so the copy stays the old, working version.
+    3. Python files of ours that the new version no longer has are removed, so a leftover one
+       can't get in the way of the new code (the .venv, data and miner are never touched)."""
+    staged: list[tuple[Path, Path]] = []  # (tmp, dest)
+    wanted = set()
+    try:
+        for n in names:
+            rel = n[len(top):]
+            if not rel or _keep(rel) or ".." in Path(rel).parts:
+                continue
+            wanted.add(rel.replace("\\", "/").lower())
+            data = zf.read(n)
+            dest = ROOT / rel
+            if dest.exists() and dest.read_bytes() == data:
+                continue
+            if rel == "START.bat":
+                # The running START.bat can't be swapped safely; it applies this on next start.
+                dest = ROOT / "START.bat.new"
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            tmp = dest.with_name(dest.name + ".tmp")
+            tmp.write_bytes(data)
+            staged.append((tmp, dest))
+    except Exception:
+        for tmp, _ in staged:
+            tmp.unlink(missing_ok=True)
+        raise
+
+    swapped: list[tuple[Path, Path | None]] = []  # (dest, its .old copy, or None if it was new)
+    try:
+        for tmp, dest in staged:
+            old = dest.with_name(dest.name + ".old") if dest.exists() else None
+            if old:
+                os.replace(dest, old)
+            swapped.append((dest, old))
+            os.replace(tmp, dest)
+    except Exception:
+        for dest, old in reversed(swapped):
+            try:
+                if old:
+                    os.replace(old, dest)
+                else:
+                    dest.unlink(missing_ok=True)
+            except OSError:
+                pass
+        for tmp, _ in staged:
+            tmp.unlink(missing_ok=True)
+        raise RuntimeError("Windows wouldn't let go of one of Loot Radar's files, so the update was "
+                           "undone and nothing changed. Try again in a minute.")
+    for _, old in swapped:
+        if old:
+            old.unlink(missing_ok=True)
+
+    app_dir = ROOT / "app"
+    for p in app_dir.glob("*.py") if wanted else []:
+        if f"app/{p.name}".lower() not in wanted:
+            try:
+                p.unlink()
+            except OSError:
+                pass
+    return len(staged)
+
+
 def _update(on_done) -> None:
     try:
         r = requests.get(ZIP_URL, timeout=120)
@@ -380,23 +448,7 @@ def _update(on_done) -> None:
             raise RuntimeError("The download doesn't look like Loot Radar, so nothing was changed.")
 
         job["note"] = "Installing…"
-        changed = 0
-        for n in names:
-            rel = n[len(top):]
-            if not rel or _keep(rel) or ".." in Path(rel).parts:
-                continue
-            data = zf.read(n)
-            dest = ROOT / rel
-            if dest.exists() and dest.read_bytes() == data:
-                continue
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            if rel == "START.bat":
-                # The running START.bat can't be swapped safely; it applies this on next start.
-                dest = ROOT / "START.bat.new"
-            tmp = dest.with_name(dest.name + ".tmp")
-            tmp.write_bytes(data)
-            os.replace(tmp, dest)
-            changed += 1
+        changed = _apply_zip(zf, names, top)
         new_version = current_version()
         job.update(state="done", note=f"Updated to Loot Radar {new_version} — restarting…")
         store.log(f"Loot Radar updated to {new_version} ({changed} files). Restarting.")

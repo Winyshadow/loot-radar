@@ -130,22 +130,23 @@ def refresh_library() -> int:
     if not (cfg["steam_api_key"] and cfg["steam_id"]):
         raise steam.SteamError("Add your Steam API key and profile in Settings first.")
     owned = steam.owned_games(cfg["steam_api_key"], cfg["steam_id"])
-    games = cfg.get("games") or {}
-    fresh = {}
-    for g in owned:
-        old = games.get(g["appid"], {})
-        fresh[g["appid"]] = {
-            **g,
-            "mode": old.get("mode", "off"),
-            "twitch_name": old.get("twitch_name", ""),
-            "order": old.get("order", 0),
-        }
-    # keep watched games even if they vanished (e.g. family-shared)
-    for appid, g in games.items():
-        if appid not in fresh and (g.get("mode", "off") != "off" or not appid.isdigit()):
-            fresh[appid] = g  # Twitch-only games and other stores' games are managed separately
-    cfg["games"] = fresh
-    store.save_config(cfg)
+    # Re-read the config now that Steam has answered: anything you changed meanwhile stays.
+    with store.edit_config() as cfg:
+        games = cfg.get("games") or {}
+        fresh = {}
+        for g in owned:
+            old = games.get(g["appid"], {})
+            fresh[g["appid"]] = {
+                **g,
+                "mode": old.get("mode", "off"),
+                "twitch_name": old.get("twitch_name", ""),
+                "order": old.get("order", 0),
+            }
+        # keep watched games even if they vanished (e.g. family-shared)
+        for appid, g in games.items():
+            if appid not in fresh and (g.get("mode", "off") != "off" or not appid.isdigit()):
+                fresh[appid] = g  # Twitch-only games and other stores' games are managed separately
+        cfg["games"] = fresh
     store.patch_state(library_updated=int(time.time()))
     store.log(f"Steam library refreshed: {len(owned)} games.")
     return len(owned)
@@ -176,7 +177,19 @@ def scan_pc() -> dict:
     Games you already have on Steam are skipped. New ones start as Off."""
     import gamescan
     found, errors = gamescan.scan()
-    cfg = store.load_config()
+    with store.edit_config() as cfg:
+        counts = _merge_scan(cfg, found, gamescan)
+    store.patch_state(pc_scanned=int(time.time()))
+    total = sum(counts.values())
+    detail = ", ".join(f"{gamescan.SOURCES[s]} {n}" for s, n in sorted(counts.items(), key=lambda kv: -kv[1]))
+    store.log(f"Scanned this PC: {total} games from other launchers" + (f" ({detail})." if detail else "."))
+    for e in errors:
+        store.log(f"PC scan: {e}", "warn")
+    return {"total": total, "by_source": counts}
+
+
+def _merge_scan(cfg: dict, found: list, gamescan) -> dict[str, int]:
+    """Put the games a PC scan found into cfg["games"]. Returns how many per launcher."""
     games = cfg.get("games") or {}
     steam_names = {norm(base_title(g["name"])) for k, g in games.items() if k.isdigit()}
     seen = set()
@@ -205,14 +218,7 @@ def scan_pc() -> dict:
         else:
             games[key].update(installed=False, removed=True)
     cfg["games"] = games
-    store.save_config(cfg)
-    store.patch_state(pc_scanned=int(time.time()))
-    total = sum(counts.values())
-    detail = ", ".join(f"{gamescan.SOURCES[s]} {n}" for s, n in sorted(counts.items(), key=lambda kv: -kv[1]))
-    store.log(f"Scanned this PC: {total} games from other launchers" + (f" ({detail})." if detail else "."))
-    for e in errors:
-        store.log(f"PC scan: {e}", "warn")
-    return {"total": total, "by_source": counts}
+    return counts
 
 
 def library_game(games: dict, twitch_game: str):
@@ -387,13 +393,13 @@ def drop_unclaimed(campaigns: list, completed: list) -> list:
 
 def clear_completed(older_than_hours: float = 0) -> int:
     """Hide completed drops (all, or only ones older than N hours). Returns how many."""
-    state = store.load_state()
     cutoff = time.time() - older_than_hours * 3600
-    keep, gone = [], []
-    for c in state.get("completed_drops") or []:
-        (gone if c.get("ts", 0) <= cutoff else keep).append(c)
-    cleared = list(state.get("cleared_drops") or []) + [c["id"] for c in gone]
-    store.patch_state(completed_drops=keep, cleared_drops=cleared[-3000:])
+    with store.edit_state() as state:
+        keep, gone = [], []
+        for c in state.get("completed_drops") or []:
+            (gone if c.get("ts", 0) <= cutoff else keep).append(c)
+        cleared = list(state.get("cleared_drops") or []) + [c["id"] for c in gone]
+        state.update(completed_drops=keep, cleared_drops=cleared[-3000:])
     return len(gone)
 
 
@@ -567,7 +573,9 @@ def _run_cycle(watcher, force_news: bool) -> None:
                     store.log(f"Discord: {g['name']} news — {item['title']}")
                 else:
                     store.log(f"{g['name']} news: {item['title']}")
-            seen_news[appid] = ([i["gid"] for i in new] + seen)[:60]
+            # Everything shown now counts as seen, also posts beyond the 3 newest (those were
+            # skipped on purpose, not saved for later).
+            seen_news[appid] = ([i["gid"] for i in items if i["gid"] not in seen] + seen)[:60]
         store.patch_state(last_news_check=now)
 
     if campaigns is not None:
@@ -577,10 +585,12 @@ def _run_cycle(watcher, force_news: bool) -> None:
         for e in wrong:
             store.log(f"{e.get('reward')} ({e.get('game_name')}) wasn't actually claimed: Twitch shows it unfinished. "
                       "Took it off Completed drops.", "warn")
-        extra = {"completed_drops": completed[-300:]}
-        if newly or wrong:
-            extra["claimed_total"] = max(0, int(state.get("claimed_total") or 0) + newly - len(wrong))
-        store.patch_state(**extra)
+        # Saved against the state as it is now: drops you cleared while this check ran stay cleared.
+        with store.edit_state() as fresh:
+            cleared_now = set(fresh.get("cleared_drops") or [])
+            fresh["completed_drops"] = [e for e in completed if e.get("id") not in cleared_now][-300:]
+            if newly or wrong:
+                fresh["claimed_total"] = max(0, int(fresh.get("claimed_total") or 0) + newly - len(wrong))
     else:
         relevant = state.get("campaigns") or []  # miner offline: keep showing the last known list
 

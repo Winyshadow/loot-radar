@@ -5,8 +5,10 @@ from __future__ import annotations
 import copy
 import json
 import os
+import shutil
 import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import paths
@@ -62,15 +64,55 @@ DEFAULT_STATE = {
 _lock = threading.RLock()
 
 
+class StoreError(OSError):
+    """A settings file exists but couldn't be read. Never answered with defaults: saving those
+    would overwrite (and so lose) everything in it."""
+
+
+def _backup(path: Path) -> Path:
+    return path.with_name(path.name + ".bak")
+
+
+def _parse(path: Path) -> dict | None:
+    """The file's contents, or None if it's missing, damaged or not a JSON object.
+    Raises StoreError if it's there but Windows won't let us read it (OneDrive, antivirus)."""
+    for attempt in range(10):  # a lock by OneDrive or antivirus usually lasts a moment
+        try:
+            text = path.read_text(encoding="utf-8")
+            break
+        except FileNotFoundError:
+            return None
+        except OSError as exc:
+            if attempt == 9:
+                raise StoreError(f"Couldn't read {path.name} ({exc.__class__.__name__}); "
+                                 "it was left as it is.") from exc
+            time.sleep(0.2)
+    try:
+        loaded = json.loads(text)
+    except ValueError:
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
 def _read(path: Path, default: dict) -> dict:
     data = copy.deepcopy(default)
-    if path.exists():
-        try:
-            loaded = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(loaded, dict):
-                data.update(loaded)
-        except (OSError, json.JSONDecodeError):
-            pass
+    loaded = _parse(path)
+    if loaded is None and path.exists():
+        # Damaged (e.g. cut off by a power cut or a sync conflict): keep it aside, use the
+        # previous good copy so nothing is lost.
+        if path not in _damaged:
+            _damaged.add(path)
+            try:
+                shutil.copy2(path, path.with_name(f"{path.stem}.damaged-{int(time.time())}{path.suffix}"))
+            except OSError:
+                pass
+        loaded = _parse(_backup(path))
+        if loaded is not None:
+            print(time.strftime("%H:%M:%S"), "WARN", f"{path.name} was damaged; using its backup.", flush=True)
+    elif loaded is None:
+        loaded = _parse(_backup(path))  # missing: a save may have stopped halfway, see _write
+    if loaded:
+        data.update(loaded)
     return data
 
 
@@ -78,7 +120,18 @@ def _write(path: Path, data: dict) -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    # The current file becomes the backup (a rename, so it costs nothing), then the new one goes in.
+    # A damaged current file never replaces the good backup.
+    try:
+        if path.exists() and path not in _damaged:
+            os.replace(path, _backup(path))
+    except OSError:
+        pass  # backup is a bonus; never let it stop a save
     os.replace(tmp, path)
+    _damaged.discard(path)
+
+
+_damaged: set[Path] = set()
 
 
 def load_config() -> dict:
@@ -118,12 +171,34 @@ def patch_state(**changes) -> dict:
         return state
 
 
-def log(msg: str, level: str = "info") -> None:
-    """Append a line to the dashboard activity log (keeps the last 200)."""
+@contextmanager
+def edit_config():
+    """Read, change and save the config with nothing else saving in between:
+    with store.edit_config() as cfg: cfg["x"] = 1   (saved when the block ends without an error)."""
+    with _lock:
+        cfg = load_config()
+        yield cfg
+        save_config(cfg)
+
+
+@contextmanager
+def edit_state():
+    """Like edit_config, for state.json."""
     with _lock:
         state = load_state()
-        state["log"] = (state.get("log") or [])[-199:] + [
-            {"ts": int(time.time()), "level": level, "msg": msg}
-        ]
+        yield state
         save_state(state)
+
+
+def log(msg: str, level: str = "info") -> None:
+    """Append a line to the dashboard activity log (keeps the last 200)."""
+    try:
+        with _lock:
+            state = load_state()
+            state["log"] = (state.get("log") or [])[-199:] + [
+                {"ts": int(time.time()), "level": level, "msg": msg}
+            ]
+            save_state(state)
+    except OSError:  # state.json locked right now: the line still goes to lootradar.log
+        pass
     print(time.strftime("%H:%M:%S"), level.upper(), msg, flush=True)

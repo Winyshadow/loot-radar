@@ -934,6 +934,10 @@ function store(k, v) { try { if (v === undefined) return JSON.parse(localStorage
 let OPEN = new Set(store("lr-open") || []);
 
 function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+// Hidden: a background browser tab, or Loot Radar's own window closed to the tray (window.py
+// sets __lrHidden, since a hidden window doesn't always count as hidden for the browser engine).
+function pageHidden() { return document.hidden || window.__lrHidden === true; }
+window.lrVisible = () => { if (!pageHidden()) { refresh(); loadNow(); } };
 function toast(msg, kind = "") { const t = $("#toast"); t.textContent = msg; t.className = "toast " + kind; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", 4200); }
 async function api(path, body) {
   const r = await fetch(path, { method: body === undefined ? "GET" : "POST", headers: {"Content-Type": "application/json"}, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -1789,7 +1793,7 @@ function fillForms() {
 /* ---------------- now mining */
 let NOW = null, nowAt = 0;
 async function loadNow() {
-  if (document.hidden || !$("#p-overview").classList.contains("on")) return;
+  if (pageHidden() || !$("#p-overview").classList.contains("on")) return;
   try {
     const next = await api("/api/now"), a = NOW && NOW.drop, b = next.drop;
     // The miner only refreshes its remaining time about once a minute; keep our own clock
@@ -2243,10 +2247,14 @@ $("#dq").addEventListener("input", renderAllDrops);
 $("#add-name").addEventListener("keydown", e => { if (e.key === "Enter") $("#btn-add-tw").click(); });
 
 route();
-refresh(); setInterval(refresh, 8000);
+refresh(); setInterval(() => { if (!pageHidden()) refresh(); }, 8000);  // nothing to draw while hidden
 loadNow(); setInterval(loadNow, 5000);
 window.addEventListener("hashchange", () => setTimeout(loadNow, 50));
-document.addEventListener("visibilitychange", loadNow);
+document.addEventListener("visibilitychange", window.lrVisible);
+// Safety net: a window you're using is never hidden (in case the message from window.py got lost).
+["focus", "pointerdown"].forEach(ev => window.addEventListener(ev, () => {
+  if (window.__lrHidden) { window.__lrHidden = false; window.lrVisible(); }
+}));
 setInterval(() => { if (S && (["downloading", "installing"].includes((S.miner_job || {}).state) || (S.update_job || {}).state === "working")) refresh(); }, 1500);
 loadAllDrops(); setInterval(loadAllDrops, 5 * 60 * 1000);
 </script>

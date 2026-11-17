@@ -39,6 +39,7 @@ TAILSCALE_NET = ipaddress.ip_network("100.64.0.0/10")
 _server = None
 _lock = threading.Lock()
 _fails: dict[str, list[float]] = {}
+_fails_lock = threading.Lock()
 
 
 # ------------------------------------------------------------------ settings
@@ -75,19 +76,21 @@ def authorized(req) -> bool:
 
 
 def check_pin(addr: str, pin: str) -> tuple[bool, str]:
-    """(ok, message). Five wrong tries from one address in 10 minutes locks it out."""
-    now = time.time()
-    tries = [t for t in _fails.get(addr, []) if now - t < 600]
-    _fails[addr] = tries
-    if len(tries) >= 5:
-        return False, "Too many wrong PINs. Wait 10 minutes and try again."
-    s = settings()
-    if s["enabled"] and secrets.compare_digest(str(pin).strip(), s["pin"]):
-        _fails.pop(addr, None)
-        return True, ""
-    tries.append(now)
-    left = 5 - len(tries)
-    return False, "That PIN isn't right." + (f" {left} tries left." if left else " Locked for 10 minutes.")
+    """(ok, message). Five wrong tries from one address in 10 minutes locks it out.
+    One check at a time, so sending many guesses at once can't get past the count."""
+    with _fails_lock:
+        now = time.time()
+        tries = [t for t in _fails.get(addr, []) if now - t < 600]
+        _fails[addr] = tries
+        if len(tries) >= 5:
+            return False, "Too many wrong PINs. Wait 10 minutes and try again."
+        s = settings()
+        if s["enabled"] and secrets.compare_digest(str(pin).strip(), s["pin"]):
+            _fails.pop(addr, None)
+            return True, ""
+        tries.append(now)
+        left = 5 - len(tries)
+        return False, "That PIN isn't right." + (f" {left} tries left." if left else " Locked for 10 minutes.")
 
 
 def redact(settings_out: dict) -> dict:

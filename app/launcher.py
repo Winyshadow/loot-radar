@@ -77,10 +77,16 @@ def ensure_packages(visible: bool) -> bool:
 
 
 def running() -> bool:
+    """Is Loot Radar running? Asks /api/ping, which answers at once even while Loot Radar is busy
+    (/api/state can take seconds when the miner hangs). Any answer counts: an older Loot Radar
+    without /api/ping says "not found", but it's there."""
+    import urllib.error
     import urllib.request
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/state", timeout=3) as r:
-            return r.status == 200
+        with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/api/ping", timeout=10):
+            return True
+    except urllib.error.HTTPError:
+        return True
     except Exception:
         return False
 
