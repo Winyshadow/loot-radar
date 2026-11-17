@@ -84,6 +84,9 @@
   input::placeholder { color: var(--faint); }
   input:focus, select:focus { outline: none; border-color: var(--lime); box-shadow: 0 0 0 3px rgba(182, 240, 60, .12); }
   select option { background: #0b2a3b; }
+  .share-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 14px; background: rgba(5, 25, 36, .35); }
+  .share-line .share-url { display: inline-block; margin-top: 4px; font-size: 13px; word-break: break-all; }
+  .share-line button { flex: none; }
   .pillbox { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 14px; border-radius: 99px; background: rgba(5, 25, 36, .5); border: 1px solid var(--line2); color: var(--dim); font-size: 13px; }
   .pillbox b { color: var(--text); font-weight: 600; }
 
@@ -774,6 +777,11 @@
         <div style="padding:12px 18px 16px; display:grid; gap:8px">
           <label class="check-line"><input type="checkbox" id="s-auto-update"> Install new miner versions automatically</label>
           <div class="faint">Loot Radar checks GitHub every 6 hours, shows new versions here and pings your Discord.</div>
+          <div class="share-line">
+            <div style="min-width:0"><b>Share Loot Radar</b><div class="faint">Send a friend this link. It always opens the newest version; they download <b>LootRadarSetup.exe</b> from there.</div>
+              <a class="share-url" href="https://github.com/Winyshadow/loot-radar/releases/latest" target="_blank" rel="noopener">github.com/Winyshadow/loot-radar/releases/latest</a></div>
+            <button class="sm" id="btn-share-copy">Copy link</button>
+          </div>
           <div class="faint">Loot Radar © 2026 solitary_samurai. All rights reserved. Free for personal use (<a href="https://github.com/Winyshadow/loot-radar/blob/main/LICENSE" target="_blank" rel="noopener">licence</a>). The drop miner is <a href="https://github.com/SimpliAj/twitchdropsminer" target="_blank" rel="noopener">Twitch Drops Miner</a> by SimpliAj (MIT).</div>
         </div>
       </div>
@@ -1710,6 +1718,16 @@ function renderMinerCard(mOk, mem, memTxt) {
   } else jb.style.display = "none";
 }
 
+const SHARE_URL = "https://github.com/Winyshadow/loot-radar/releases/latest";
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+  // fallback (the phone page over plain http has no clipboard API)
+  const t = document.createElement("textarea"); t.value = text; t.style.position = "fixed"; t.style.opacity = "0";
+  document.body.appendChild(t); t.select();
+  let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+  t.remove(); return ok;
+}
+
 function renderUpdates() {
   const u = S.updates || {}, lr = u.loot_radar || {}, mn = u.miner || {};
   const uj = S.update_job || {}, mj = S.miner_job || {}, mBusy = ["downloading", "installing"].includes(mj.state);
@@ -2121,6 +2139,8 @@ document.addEventListener("click", async e => {
     } else if (b.dataset.act === "miner-start") { await api("/api/miner/start", {}); toast("Starting the miner…", "ok");
     } else if (b.dataset.act === "miner-stop") { await api("/api/miner/stop", {}); toast("Miner stopped.");
     } else if (b.dataset.act === "miner-restart") { await api("/api/miner/stop", {}); await api("/api/miner/start", {}); toast("Miner restarted.", "ok");
+    } else if (b.id === "btn-share-copy") {
+      toast(await copyText(SHARE_URL) ? "Link copied. Paste it to a friend." : "Couldn't copy. Select the link and copy it instead.", "ok"); return;
     } else if (b.id === "btn-upd-check") { await api("/api/updates/check", {}); toast("Checking GitHub for updates…"); setTimeout(refresh, 5000);
     } else if (b.dataset.act === "lr-update") {
       await api("/api/updates/apply", {}); toast("Updating Loot Radar — it restarts by itself in a moment.", "ok"); waitForRestart();
